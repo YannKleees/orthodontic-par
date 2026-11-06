@@ -29,7 +29,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  RotateCw,
   Download,
   Share2,
   Edit3,
@@ -46,8 +45,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { cn } from "../lib/utils";
 import { usePARComponentsContext } from "../hooks/usePARComponentsContext";
-import { useVisitDetail } from "@/hooks/useApi";
+import { useApi } from "@/hooks/useApi";
+import { apiClient } from "@/lib/api";
 import { mosaicUrl }       from "@/lib/paths";
+import { MOSAIC_W, MOSAIC_H, CELL_W, viewAt } from "@/lib/mosaic";
 
 interface PAR_Component {
   id: string;
@@ -102,10 +103,9 @@ export function MosaicFullscreen({
     getComponentsByView,
   } = usePARComponentsContext(patientId, visitId);
 
-  const { data: visit, loading } = useVisitDetail(visitId);
+  const { data: visit, loading } = useApi(() => apiClient.getPatientVisit(patientId, visitId), [patientId, visitId]);
 
   /** Visual state (does not alter persisted geometry). */
-  const [rotation,        setRotation]        = useState(0);
   const [editMode,        setEditMode]        = useState(false);
   const [selectedView,    setSelectedView]    = useState("centre");
   const [editTool,        setEditTool]        = useState<"move"|"resize"|"add"|"delete">("move");
@@ -117,8 +117,8 @@ export function MosaicFullscreen({
    * Canonical model-space resolution used by the backend. All boxes are stored
    * and updated in this space; percentages for CSS are derived from it.
    */
-  const MOSAIC_WIDTH = 600;
-  const MOSAIC_HEIGHT = 400;
+  const MOSAIC_WIDTH = MOSAIC_W;
+  const MOSAIC_HEIGHT = MOSAIC_H;
 
   /**
    * Drag/resize state:
@@ -134,6 +134,7 @@ export function MosaicFullscreen({
        startX: number;
        startY: number;
        startCoords: { x: number; y: number; width: number; height: number } | null;
+       scale: number;
    }>({
        isDragging: false,
        componentId: null,
@@ -142,6 +143,7 @@ export function MosaicFullscreen({
        startX: 0,
        startY: 0,
        startCoords: null,
+       scale: 1,
    });
 
   /** Registers/unregisters global listeners only while dragging is active. */
@@ -175,6 +177,9 @@ export function MosaicFullscreen({
 
     const component = parComponents.find((c) => c.id === componentId);
     if (!component || !editMode) return;
+    // Screen pixels -> mosaic pixels, from the rendered width of the mosaic
+    const frame = (e.currentTarget as HTMLElement).closest("[data-mosaic-frame]") as HTMLElement | null;
+    const scale = frame ? MOSAIC_WIDTH / frame.getBoundingClientRect().width : 1;
 
     setDragState({
       isDragging: true,
@@ -184,6 +189,7 @@ export function MosaicFullscreen({
       startX: e.clientX,
       startY: e.clientY,
       startCoords: { ...component.coordinates },
+      scale,
     });
   };
 
@@ -201,8 +207,8 @@ export function MosaicFullscreen({
     )
       return;
 
-    const deltaX = e.clientX - dragState.startX;
-    const deltaY = e.clientY - dragState.startY;
+    const deltaX = (e.clientX - dragState.startX) * dragState.scale;
+    const deltaY = (e.clientY - dragState.startY) * dragState.scale;
 
     if (dragState.componentId) {
       const startCoords = dragState.startCoords!;
@@ -212,8 +218,8 @@ export function MosaicFullscreen({
         newCoords.x = Math.max(0, Math.min(MOSAIC_WIDTH - startCoords.width, startCoords.x + deltaX));
         newCoords.y = Math.max(0, Math.min(MOSAIC_HEIGHT - startCoords.height, startCoords.y + deltaY));
       } else if (dragState.mode === "resize") {
-        const minSize = 20;
-        const maxSize = 200;
+        const minSize = 40;           // mosaic pixels
+        const maxSize = CELL_W;       // at most one view wide
 
         switch (dragState.resizeHandle) {
           case "se":
@@ -249,7 +255,10 @@ export function MosaicFullscreen({
         newCoords.y = Math.max(0, Math.min(MOSAIC_HEIGHT - newCoords.height, newCoords.y));
       }
 
-      updateComponent(dragState.componentId, { coordinates: newCoords });
+      const r = Math.round;
+      updateComponent(dragState.componentId, {
+        coordinates: { x: r(newCoords.x), y: r(newCoords.y), width: r(newCoords.width), height: r(newCoords.height) },
+      });
     }
   };
 
@@ -264,12 +273,11 @@ export function MosaicFullscreen({
         startX: 0,
         startY: 0,
         startCoords: null,
+        scale: 1,
       });
     }
   };
 
-  /** Purely visual 90° rotation; underlying coordinates remain unchanged. */
-  const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
 
   /** Opens the score editor with current values for the selected component. */
   const handleEditScore = (componentId: string, currentScore: number) => {
@@ -347,10 +355,6 @@ export function MosaicFullscreen({
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={handleRotate}>
-              <RotateCw className="w-4 h-4" />
-            </Button>
-
             {/* Edit mode toggle with tool default */}
             <Button
               variant={editMode ? "default" : "outline"}
@@ -447,8 +451,9 @@ export function MosaicFullscreen({
             className={cn(
               "relative bg-white rounded-lg shadow-lg overflow-hidden",
               editMode && editTool === "add" && "cursor-crosshair",
-              "w-full max-w-[800px]"
+              "w-full max-w-[1400px]"
             )}
+            data-mosaic-frame
             style={{
               aspectRatio: `${MOSAIC_WIDTH} / ${MOSAIC_HEIGHT}`,
               contain: 'strict'
@@ -461,17 +466,17 @@ export function MosaicFullscreen({
 
                 const newComponent = {
                   component: "Upper Crowding" as const,
-                  toothRegion: "New region",
+                  toothRegion: "Unspecified",
                   score: 0,
                   maxScore: 5,
                   confidence: 100,
                   coordinates: {
-                    x: Math.max(0, x - 40),
-                    y: Math.max(0, y - 30),
-                    width: 80,
-                    height: 60,
+                    x: Math.max(0, x - 150),
+                    y: Math.max(0, y - 120),
+                    width: 300,
+                    height: 240,
                   },
-                  viewId: selectedView,
+                  viewId: viewAt(x, y),
                   editable: true,
                 };
 
@@ -481,18 +486,14 @@ export function MosaicFullscreen({
             }}
           >
             <img
-              src={visit.mosaicUrl ?? mosaicUrl(visit.patientId, visit.id)}
+              src={visit.mosaicFullUrl ?? mosaicUrl(visit.patientId, visit.id, false)}
               alt={`Mosaic – ${patientName}`}
               className="transition-transform duration-200 pointer-events-none object-contain w-full h-full"
-              style={{
-                transform: `rotate(${rotation}deg)`,
-                transformOrigin: 'center center'
-              }}
               draggable={false}
             />
 
             {/* Overlay rectangles derived from model-space percentages */}
-            {getComponentsByView(selectedView).map((component) => (
+            {parComponents.map((component) => (
               <div
                 key={component.id}
                 className={cn(
@@ -631,7 +632,7 @@ export function MosaicFullscreen({
                 )}
               </span>
               <span className="text-xs text-gray-500">
-                Components visible: {getComponentsByView(selectedView).length}
+                Components: {parComponents.length}
               </span>
             </div>
             <span className="text-gray-600">

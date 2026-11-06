@@ -145,7 +145,7 @@ function VisitsSidebar({
     status: v.status,
     time: v.time ?? "",
     doctor: v.doctor ?? "",
-    description: v.description ?? "",
+    description: v.notes ?? "",
     mosaicUrl: v.mosaicUrl ?? undefined,
   }));
 

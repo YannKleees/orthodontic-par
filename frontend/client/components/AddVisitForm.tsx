@@ -4,7 +4,6 @@ import {
 } from "lucide-react";
 import { Button }        from "./ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { Progress }      from "./ui/progress";
 import { cn }            from "@/lib/utils";
 import { apiClient }     from "@/lib/api";
 
@@ -77,53 +76,9 @@ export default function AddVisitForm(props:Props) {
   const [visitId, setVisitId] = useState<string|null>(null);
   const inputs = useRef<Record<ViewId,HTMLInputElement|null>>({} as any);
 
-  /**
-   * createVisit
-   * @description
-   * Initializes a new visit on the server for the given patient.
-   * Returns the assigned visit identifier used for subsequent image uploads.
-   *
-   * Endpoint contract:
-   *   POST /visits/:patientId/visits → { id: string }
-   */
-  const createVisit = async () => {
-    const { data } = await apiClient.request<{id:string}>(
-      `/visits/${patientId}/visits`,
-      { method:"POST" }
-    );
-    setVisitId(data.id);
-    return data.id;
-  };
-
-  /**
-   * uploadOne
-   * @description
-   * Uploads one image for a specific canonical view into the visit context.
-   * Files are appended via FormData to preserve filename metadata.
-   *
-   * Endpoint contract:
-   *   POST /visits/images/:visitId?view=<ViewId>
-   */
-  const uploadOne = async (vid:string, view:ViewId, file:File) => {
-    const fd = new FormData();
-    fd.append("file", file, file.name);
-    return apiClient.request(
-      `/visits/images/${vid}?view=${view}`,
-      { method:"POST", body:fd }
-    );
-  };
-
-  /**
-   * runAnalysis
-   * @description
-   * Requests the backend to compose the mosaic and run PAR analysis
-   * (detection + weighted scoring) for the given visit.
-   *
-   * Endpoint contract:
-   *   POST /visits/:visitId/analyze
-   */
-  const runAnalysis = (vid:string) =>
-    apiClient.request(`/visits/${vid}/analyze`, { method:"POST" });
+  const [error, setError] = useState<string | null>(null);
+  const [date, setDate]   = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
 
   /**
    * handleFilePick
@@ -138,30 +93,29 @@ export default function AddVisitForm(props:Props) {
 
   /**
    * startUpload
-   * @description
-   * Orchestrates the full workflow:
-   *  - creates a visit if needed,
-   *  - uploads images (sequentially for deterministic progress UI),
-   *  - triggers backend analysis,
-   *  - notifies parent on completion (to open the workspace).
-   *
-   * Note:
-   *  Sequential upload simplifies demo behavior; swapping to Promise.all
-   *  would improve latency when network concurrency is available.
+   * Sends the five photos in one request. Each file is renamed after its view
+   * (up.jpg, centre.png, ...) so the backend cannot mix the views up. The backend
+   * builds the mosaic and runs the detector before it answers.
    */
   const startUpload = async () => {
-    const vid = visitId ?? await createVisit();
+    setError(null);
     setStep("uploading");
-
-    for (const v of tiles) {
-      if (!v.file) continue;
-      await uploadOne(vid, v.id, v.file);
-      setTiles(t=>t.map(x=>x.id===v.id? {...x, uploaded:true}:x));
+    const fd = new FormData();
+    for (const t of tiles) {
+      const ext = t.file!.name.split(".").pop() || "jpg";
+      fd.append("images", t.file!, `${t.id}.${ext}`);
     }
-
-    setStep("analysing");
-    await runAnalysis(vid);
-    onSave(vid);
+    fd.append("date", new Date(`${date}T12:00:00`).toISOString());
+    fd.append("notes", notes);
+    try {
+      setStep("analysing");
+      const { data } = await apiClient.request<{ id: string }>(`/upload/${patientId}`, { method: "POST", body: fd });
+      setVisitId(data.id);
+      onSave(data.id);
+    } catch (e: any) {
+      setError(e.message);
+      setStep("select");
+    }
   };
 
   if (step==="analysing")
@@ -175,9 +129,9 @@ export default function AddVisitForm(props:Props) {
             <CardTitle>AI analysis in progress …</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-1 text-gray-600">
-            <p>Detecting PAR components</p>
-            <p>Building mosaic</p>
-            <p>Calculating scores</p>
+            <p>Building the mosaic</p>
+            <p>Running the detector on the five views</p>
+            <p>Creating PAR suggestions</p>
           </CardContent>
         </Card>
       </div>
@@ -236,12 +190,20 @@ export default function AddVisitForm(props:Props) {
             ))}
           </div>
 
-          {step==="uploading" && (
-            <Progress
-              value={tiles.filter(t=>t.uploaded).length*20}
-              className="h-2"
-            />
-          )}
+          <div className="grid sm:grid-cols-[180px_1fr] gap-4 items-start">
+            <label className="text-sm text-gray-700 space-y-1">
+              <span>Visit date</span>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                     className="w-full h-9 rounded-md border px-2 text-sm" />
+            </label>
+            <label className="text-sm text-gray-700 space-y-1">
+              <span>Notes (optional)</span>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+                        className="w-full rounded-md border px-2 py-1 text-sm" />
+            </label>
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-3 pt-4">
             <Button

@@ -28,7 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 import { DATA_DIR } from "./config.js";
 
-import { uploadRouter }           from "./routes/uploads.ts";
+import { uploadRouter }           from "./routes/uploads.js";
 import { visitsRouter }           from "./routes/visits.js";
 import { router as patientsRouter }      from "./routes/patients.js";
 import { router as parComponentsRouter } from "./routes/par-components.js";
@@ -36,6 +36,8 @@ import { router as reportsRouter }       from "./routes/reports.js";
 import { router as similarRouter }       from "./routes/similar-patients.knn.ts";
 import { rebuildVectorCache }     from "../src/knn/vector-cache.ts";
 import { PATIENT }                from "./utils/fileStore.js";
+import { hydrateVisits }          from "./utils/visitStore.js";
+import { MODEL }                  from "./utils/aiAnalysis.js";
 
 /**
  * @description Express application configuration
@@ -52,7 +54,7 @@ import { PATIENT }                from "./utils/fileStore.js";
  * - /api/par-components: PAR analysis
  * - /api/similar-patients: k-NN search
  */
-const PORT = 8000;
+const PORT = Number(process.env.PORT || 8000);
 const app  = express();
 
 app.use(cors({ origin: (o, cb) => cb(null, o || "*"), credentials: true }));
@@ -65,7 +67,12 @@ app.use("/api/par-components",  parComponentsRouter);
 app.use("/api/reports",         reportsRouter);
 app.use("/api/similar-patients",similarRouter);
 app.get("/api/ping", (_q, r) => r.json({ message: "pong" }));
-app.use("/", express.static(join(process.cwd(), "public")));
+// Production: serve the built frontend (npm run build in frontend/) from the same port
+const SPA = join(dirname(__filename), "..", "frontend", "dist", "spa");
+if (fs.existsSync(SPA)) {
+  app.use(express.static(SPA));
+  app.get(/^\/(?!api|static).*/, (_req, res) => res.sendFile(join(SPA, "index.html")));
+}
 
 /**
  * @async
@@ -81,15 +88,17 @@ app.use("/", express.static(join(process.cwd(), "public")));
  * - Computes similarity vectors
  * - Validates data integrity
  */
-app.listen(PORT, () =>
-  console.log(`✔︎ API running on http://localhost:${PORT}/api`)
-);
 
 (async () => {
   try {
     await fs.ensureDir(join(DATA_DIR, "patients"));
     await fs.ensureDir(join(DATA_DIR, "reports"));
     await fs.ensureDir(join(DATA_DIR, "temp"));
+
+    console.log(`✔︎ Visits loaded (${await hydrateVisits()})`);
+    console.log(await fs.pathExists(MODEL)
+      ? `✔︎ Detector: ${MODEL}`
+      : `⚠ Detector weights missing (${MODEL}); uploads work but get no AI suggestions`);
 
     const ids = (await fs.pathExists(PATIENT)) ? await fs.readdir(PATIENT) : [];
     const patients = await Promise.all(
@@ -100,4 +109,6 @@ app.listen(PORT, () =>
   } catch (err) {
     console.error("Error during server initialization:", err);
   }
+  // Listen only after the caches are loaded, so the first requests see all data
+  app.listen(PORT, () => console.log(`✔︎ API running on http://localhost:${PORT}/api`));
 })();

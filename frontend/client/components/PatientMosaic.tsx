@@ -13,6 +13,7 @@ import { cn }              from "@/lib/utils";
 import { useVisitDetail, useParComponentList  }  from "@/hooks/useApi";
 import { mosaicUrl }       from "@/lib/paths";
 import { useState as reactUseState } from "react";
+import { boxStyle } from "@/lib/mosaic";
 
 export const getMosaicData = (visitId:string)=>({
   title : "Orthodontic PAR Analysis",
@@ -39,8 +40,9 @@ const colour: Record<string, string> = {
  */
 export function PatientMosaic({ visitId, className }: { visitId: string; className?: string }) {
   const { data: visit, loading } = useVisitDetail(visitId);
-  const { data: boxes = [], loading: boxesLoading } =
+  const { data: boxData, loading: boxesLoading } =
           useParComponentList(visit?.patientId, visit?.id);
+  const boxes = boxData ?? [];
 
   /** Natural dimensions captured on first load (not used for scaling in this view). */
   const [dim, setDim] = reactUseState({ w: 1200, h: 800 });
@@ -49,7 +51,7 @@ export function PatientMosaic({ visitId, className }: { visitId: string; classNa
     return <div className={cn("bg-gray-100 animate-pulse rounded-lg", className)} />;
   }
 
-  const A_RATIO = "aspect-[3/2]";
+  const A_RATIO = "aspect-[6144/2400]";     // same shape as the mosaic, so boxes line up
 
   /** Cache intrinsic mosaic size for potential diagnostics/telemetry. */
   const onImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -68,7 +70,7 @@ export function PatientMosaic({ visitId, className }: { visitId: string; classNa
       <img
         src={visit.mosaicUrl || mosaicUrl(visit.patientId, visit.id)}
         alt="Mosaic"
-        className="absolute inset-0 w-full h-full object-contain"
+        className="absolute inset-0 w-full h-full"
         onLoad={onImgLoad}
       />
       {boxes.map(b => (
@@ -77,13 +79,9 @@ export function PatientMosaic({ visitId, className }: { visitId: string; classNa
           className={cn(
             "absolute border-2 rounded-sm overflow-hidden",
             colour[b.component] ?? "border-gray-400 bg-black/10",
+            b.source === "ai" && !b.reviewed && "border-dashed",
           )}
-          style={{
-            left  : `${(b.coordinates.x      / 600) * 100}%`,
-            top   : `${(b.coordinates.y      / 400) * 100}%`,
-            width : `${(b.coordinates.width  / 600) * 100}%`,
-            height: `${(b.coordinates.height / 400) * 100}%`,
-          }}
+          style={boxStyle(b.coordinates)}
           title={`${b.component}: ${b.score}/${b.maxScore}`}
         />
       ))}

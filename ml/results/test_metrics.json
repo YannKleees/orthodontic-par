@@ -1,0 +1,31 @@
+{
+  "model": "ml/weights_base/yolo11n.pt",
+  "epochs_requested": 1,
+  "imgsz": 512,
+  "test_mAP50": 0.0118,
+  "test_mAP50_95": 0.0063,
+  "per_class_mAP50_95": {
+    "healthy_tooth": 0.0043,
+    "tooth_torsion": 0.0208,
+    "deep_overjet": 0.0009,
+    "invisible_attachment": 0.0026,
+    "tooth_emergence": 0.0,
+    "cast_fixed_appliance": 0.0002,
+    "tooth_misalignment": 0.0001,
+    "mandibular_retrusion": 0.0004,
+    "orthodontic_brace": 0.0037,
+    "fixed_device": 0.03
+  },
+  "per_class_mAP50": {
+    "healthy_tooth": 0.0096,
+    "tooth_torsion": 0.036,
+    "deep_overjet": 0.0015,
+    "invisible_attachment": 0.0047,
+    "tooth_emergence": 0.0,
+    "cast_fixed_appliance": 0.0006,
+    "tooth_misalignment": 0.0002,
+    "mandibular_retrusion": 0.0006,
+    "orthodontic_brace": 0.0082,
+    "fixed_device": 0.0569
+  }
+}

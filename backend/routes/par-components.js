@@ -1,211 +1,112 @@
 /**
- * @file Manages Peer Assessment Rating (PAR) components for patient visits.
- * @description This module defines the API endpoints for creating, reading,
- * updating, and deleting PAR components associated with a specific patient visit.
- * It handles data persistence by reading from and writing to `visit.json` files.
+ * @file par-components.js
+ * CRUD for the PAR component boxes of one visit.
+ *
+ *   GET    /api/par-components/:patientId/:visitId
+ *   GET    /api/par-components/:patientId/:visitId/:cid
+ *   POST   /api/par-components/:patientId/:visitId
+ *   PUT    /api/par-components/:patientId/:visitId/:cid
+ *   DELETE /api/par-components/:patientId/:visitId/:cid
+ *
+ * Every change goes through visitStore.saveVisit, which recomputes the visit's PAR
+ * total and the patient summary.
  */
-
 import { Router } from "express";
 import { z }      from "zod";
-import { load, save, vJson } from "../utils/fileStore.js";
-import fs   from "fs-extra";
-import path from "path";
-import { PAR_WEIGHTS } from "../../src/knn/feature-map.ts";
 
-/**
- * @description Zod schema for validating a PAR component.
- * The Peer Assessment Rating (PAR) is an index used to measure malocclusion.
- * Each component represents a specific occlusal trait assessment.
- */
+import { getVisit, saveVisit } from "../utils/visitStore.js";
+import { MAX_SCORES } from "../utils/par.js";
+
+const COMPONENTS = Object.keys(MAX_SCORES);
+
 const compSchema = z.object({
-  component  : z.enum([
-    "Upper Crowding",
-    "Lower Crowding",
-    "Upper Spacing",
-    "Lower Spacing",
-    "Overjet",
-    "Overbite",
-    "Crossbite",
-    "Centerline",
-  ]),
-  toothRegion  : z.string(),
+  component    : z.enum(COMPONENTS),
+  toothRegion  : z.string().default("Unspecified"),
   score        : z.number().min(0),
-  maxScore     : z.number().min(1),
-  confidence   : z.number().min(0).max(100),
+  maxScore     : z.number().min(1).optional(),
+  confidence   : z.number().min(0).max(100).default(100),
   previousScore: z.number().min(0).optional(),
   coordinates  : z.object({
     x: z.number(), y: z.number(), width: z.number(), height: z.number(),
   }),
-  viewId     : z.string(),
+  viewId     : z.string().default("mosaic"),
   editable   : z.boolean().default(true),
-  modifiedBy : z.string().default("backend"),
+  modifiedBy : z.string().default("clinician"),
 });
 const patchSchema = compSchema.partial();
 
-/**
- * Calculates the total PAR score for a given set of components.
- * The score is a weighted sum of the individual component scores.
- * @param {Array<Object>} [boxes=[]] - An array of PAR component objects.
- * @returns {number} The total weighted PAR score.
- */
-function parTotal(boxes = []) {
-  return boxes.reduce((sum, b) => {
-    const w = PAR_WEIGHTS[b.component] ?? PAR_WEIGHTS.Unknown ?? 1;
-    return sum + (b.score ?? 0) * w;
-  }, 0);
-}
-
-/**
- * Retrieves the data for a specific visit.
- * If the `visit.json` file for the visit does not exist, it falls back
- * to loading the patient's `meta.json` as a legacy or initial state.
- * @param {string} pid - The patient ID.
- * @param {string} vid - The visit ID.
- * @returns {Promise<Object>} A promise that resolves to the visit object.
- */
-async function getVisit(pid, vid) {
-  const json = vJson(pid, vid);
-  if (await fs.pathExists(json)) return (await load(json)) || { boxes: [] };
-  const meta = path.join(path.dirname(json), "meta.json");
-  return (await fs.pathExists(meta)) ? (await fs.readJson(meta)) : { boxes: [] };
-}
-
-/**
- * Persists the visit data to its corresponding `visit.json` file.
- * @param {string} pid - The patient ID.
- * @param {string} vid - The visit ID.
- * @param {Object} visit - The visit object to save.
- * @returns {Promise<void>}
- */
-async function writeVisit(pid, vid, visit) {
-  await save(vJson(pid, vid), visit);
-}
-
-/**
- * Synchronizes PAR component data and calculated scores.
- * After any modification to a visit's components, this function updates
- * the `visit.json` with the new total PAR score and also updates the
- * patient's `meta.json` to reflect the latest score.
- * @param {string} pid - The patient ID.
- * @param {string} vid - The visit ID.
- * @param {Array<Object>} boxes - The current array of PAR components for the visit.
- * @returns {Promise<void>}
- */
-async function syncVisitBoxes(pid, vid, boxes) {
-  // 1. Update visit.json with the new total PAR score.
-  const vFile = vJson(pid, vid);
-  const visit = await getVisit(pid, vid);
-  visit.status   = visit.status || "completed";
-  visit.parScore = parTotal(boxes);
-  await fs.writeJson(vFile, visit, { spaces: 2 });
-
-  // 2. Update the patient's meta.json with the current PAR score for quick access.
-  const pFile = path.join(path.dirname(path.dirname(vFile)), "meta.json");
-  if (await fs.pathExists(pFile)) {
-    const pat = await fs.readJson(pFile);
-    pat.currentPARScore = visit.parScore;
-    await fs.writeJson(pFile, pat, { spaces: 2 });
-  }
-}
-
 export const router = Router();
 
-/**
- * @route GET /:patientId/:visitId
- * @description Retrieves all PAR components for a specific visit.
- */
-router.get("/:patientId/:visitId", async (req, res) => {
-  const { patientId: pid, visitId: vid } = req.params;
-  const visit = await getVisit(pid, vid);
-  res.json({ success: true, data: visit.boxes || [] });
+function visitOr404(req, res) {
+  const visit = getVisit(req.params.patientId, req.params.visitId);
+  if (!visit) res.status(404).json({ success: false, error: "Visit not found" });
+  return visit;
+}
+
+router.get("/:patientId/:visitId", (req, res) => {
+  const visit = visitOr404(req, res);
+  if (visit) res.json({ success: true, data: visit.boxes || [] });
 });
 
-/**
- * @route GET /:patientId/:visitId/:cid
- * @description Retrieves a single PAR component by its ID.
- */
-router.get("/:patientId/:visitId/:cid", async (req, res) => {
-  const { patientId: pid, visitId: vid, cid } = req.params;
-  const visit = await getVisit(pid, vid);
-  const comp  = (visit.boxes || []).find(c => c.id === cid);
+router.get("/:patientId/:visitId/:cid", (req, res) => {
+  const visit = visitOr404(req, res);
+  if (!visit) return;
+  const comp = (visit.boxes || []).find(c => c.id === req.params.cid);
   comp
     ? res.json({ success: true, data: comp })
-    : res.status(404).json({ success: false, error: "Not found" });
+    : res.status(404).json({ success: false, error: "Component not found" });
 });
 
-/**
- * @route POST /:patientId/:visitId
- * @description Creates a new PAR component for a visit.
- */
 router.post("/:patientId/:visitId", async (req, res) => {
   const parse = compSchema.safeParse(req.body);
   if (!parse.success)
-    return res.status(400).json({ success:false,
-      error:"Invalid data", details: parse.error.errors });
+    return res.status(400).json({ success: false, error: "Invalid data", details: parse.error.errors });
 
-  const { patientId: pid, visitId: vid } = req.params;
-  const visit = await getVisit(pid, vid);
+  const visit = visitOr404(req, res);
+  if (!visit) return;
 
   const comp = {
-    id          : `comp-${Date.now()}`,
+    id          : `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     ...parse.data,
+    maxScore    : parse.data.maxScore ?? MAX_SCORES[parse.data.component],
+    source      : "clinician",
     lastModified: new Date().toISOString(),
   };
-
   visit.boxes = [...(visit.boxes || []), comp];
-  await writeVisit(pid, vid, visit);
-  await syncVisitBoxes(pid, vid, visit.boxes);
-
+  await saveVisit(visit);
   res.status(201).json({ success: true, data: comp });
 });
 
-/**
- * @route PUT /:patientId/:visitId/:cid
- * @description Updates an existing PAR component.
- */
 router.put("/:patientId/:visitId/:cid", async (req, res) => {
   const parse = patchSchema.safeParse(req.body);
   if (!parse.success)
-    return res.status(400).json({ success:false,
-      error:"Invalid data", details: parse.error.errors });
+    return res.status(400).json({ success: false, error: "Invalid data", details: parse.error.errors });
 
-  const { patientId: pid, visitId: vid, cid } = req.params;
-  const visit = await getVisit(pid, vid);
-  const list  = visit.boxes || [];
-  const idx   = list.findIndex(c => c.id === cid);
+  const visit = visitOr404(req, res);
+  if (!visit) return;
+  const list = visit.boxes || [];
+  const idx  = list.findIndex(c => c.id === req.params.cid);
+  if (idx === -1) return res.status(404).json({ success: false, error: "Component not found" });
 
-  if (idx === -1)
-    return res.status(404).json({ success:false, error:"Not found" });
-
-  list[idx] = {
-    ...list[idx],
-    ...parse.data,
-    lastModified: new Date().toISOString(),
-  };
+  const updated = { ...list[idx], ...parse.data, lastModified: new Date().toISOString() };
+  if (parse.data.component) updated.maxScore = MAX_SCORES[parse.data.component];
+  // An AI suggestion that a clinician edited is no longer an unreviewed suggestion
+  if (updated.source === "ai") updated.reviewed = true;
+  list[idx] = updated;
   visit.boxes = list;
-  await writeVisit(pid, vid, visit);
-  await syncVisitBoxes(pid, vid, visit.boxes);
-
-  res.json({ success: true, data: list[idx] });
+  await saveVisit(visit);
+  res.json({ success: true, data: updated });
 });
 
-/**
- * @route DELETE /:patientId/:visitId/:cid
- * @description Deletes a PAR component from a visit.
- */
 router.delete("/:patientId/:visitId/:cid", async (req, res) => {
-  const { patientId: pid, visitId: vid, cid } = req.params;
-  const visit = await getVisit(pid, vid);
-  const list  = visit.boxes || [];
-  const idx   = list.findIndex(c => c.id === cid);
-
-  if (idx === -1)
-    return res.status(404).json({ success:false, error:"Not found" });
+  const visit = visitOr404(req, res);
+  if (!visit) return;
+  const list = visit.boxes || [];
+  const idx  = list.findIndex(c => c.id === req.params.cid);
+  if (idx === -1) return res.status(404).json({ success: false, error: "Component not found" });
 
   const [removed] = list.splice(idx, 1);
   visit.boxes = list;
-  await writeVisit(pid, vid, visit);
-  await syncVisitBoxes(pid, vid, visit.boxes);
-
+  await saveVisit(visit);
   res.json({ success: true, data: removed });
 });

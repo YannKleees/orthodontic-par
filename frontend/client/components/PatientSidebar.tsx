@@ -351,7 +351,7 @@ function DrawerContent(props: {
 
         <button
           className="sort-dir-btn"
-          onClick={() => setSortDir((prev: SortDir) => (prev === "asc" ? "desc" : "asc"))}
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
           title={sortDir === "asc" ? "ascending" : "descending"}
         >
           {sortDir === "asc" ? <ArrowUpAZ className="w-4 h-4" /> : <ArrowDownAZ className="w-4 h-4" />}
@@ -438,7 +438,7 @@ function HeaderRow(props: {
         </button>
       </div>
 
-      {(query || chips.length) && (
+      {(query || chips.length > 0) && (
         <div className="chips-row">
           {query && <Chip text={`“${query}”`} onClear={() => setQuery("")} />}
           {chips.map((c) => (

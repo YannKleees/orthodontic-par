@@ -25,11 +25,11 @@ import type { Patient } from "../../frontend/client/hooks/types.js";
 export const PAR_WEIGHTS: Record<string, number> = {
   "Upper Crowding": 1,
   "Lower Crowding": 1,
-  "Upper Spacing" : 0.7,
-  "Lower Spacing" : 0.7,
+  "Upper Spacing" : 1,
+  "Lower Spacing" : 1,
   Overjet         : 6,
   Overbite        : 2,
-  Crossbite       : 1.5,
+  Crossbite       : 1,
   Centerline      : 4,
   Unknown         : 0.5,          // fallback “total only”
 };
@@ -83,11 +83,11 @@ export function vectorisePatient(p: Patient): number[] {
   latest?.boxes?.forEach(b => {
     const key = b.component in PAR_WEIGHTS ? b.component : "Unknown";
     const i   = Object.keys(PAR_WEIGHTS).indexOf(key);
-    parScores[i] = b.score ?? 0;
+    parScores[i] += b.score ?? 0;      // several boxes of one component add up
   });
 
   const MAX_COMP = 5;                         // Richmond components: 0‑5
-  const parNorm  = parScores.map(s => s / MAX_COMP);     // 0 – 1
+  const parNorm  = parScores.map(s => Math.min(s / MAX_COMP, 1));  // 0 – 1
 
   /* ── 3.  Scalar features – all forced into a safe 0–1 domain */
   const age = Math.min(Math.max(p.age ?? 0, 0), 120) / 100; // clamp 0‑120 yr

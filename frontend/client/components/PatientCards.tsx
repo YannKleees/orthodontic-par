@@ -108,7 +108,7 @@ function Inner({patientId,patientName,visit,onOpenFull}:InnerProps){
         a[k]={label:m.label,score:0,weight:m.weight,total:0}; return a;},{} as any);
     boxes.forEach(b=>{
       const k=canon(b.component); if(!META[k]) return;
-      dict[k].score=b.score??0; dict[k].total=dict[k].score*dict[k].weight;
+      dict[k].score+=Number(b.score)||0; dict[k].total=dict[k].score*dict[k].weight;   // several boxes add up
     });
     return { rows:Object.keys(META).map(k=>dict[k]),
              par:Object.values(dict).reduce((s,r)=>s+r.total,0) };
@@ -153,8 +153,8 @@ function Inner({patientId,patientName,visit,onOpenFull}:InnerProps){
 
         <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex-1">
-            <div className="relative bg-white rounded-[24px] shadow-lg border-2 border-gray-200 p-4 aspect-[3/2]">
-              <PatientMosaic visitId={visit.id} className="h-full"/>
+            <div className="relative bg-white rounded-[24px] shadow-lg border-2 border-gray-200 p-4">
+              <PatientMosaic visitId={visit.id}/>
               <Button size="sm" variant="outline"
                 className="absolute top-4 right-4 bg-white/90 shadow-sm"
                 onClick={()=>onOpenFull(patientId,patientName,visit.id)}>
@@ -184,6 +184,14 @@ function Inner({patientId,patientName,visit,onOpenFull}:InnerProps){
                      style={{width:`${Math.min(100,(cur.par/50)*100)}%`}}/>
               </div>
             </div>
+
+            {visit.ai && (
+              <p className="mt-2 text-xs text-gray-600">
+                {visit.ai.status === "done"
+                  ? `AI: ${visit.ai.suggestions} suggestion(s), ${currentBoxes.filter((b:any)=>b.source==="ai"&&!b.reviewed).length} not reviewed (dashed). Suggestions start at grade 1.`
+                  : `AI not run: ${visit.ai.message}`}
+              </p>
+            )}
 
             <div className="mt-3 text-xs border border-blue-100 rounded-lg overflow-hidden">
               <div className="bg-blue-50 px-2 py-1 text-blue-800 font-medium border-b border-blue-100">
@@ -284,8 +292,8 @@ function Inner({patientId,patientName,visit,onOpenFull}:InnerProps){
                 {v:firstVisit,  label:"BEFORE",  color:"bg-red-600"},
                 {v:latestVisit, label:"CURRENT", color:"bg-green-600"},
               ].map(({v,label,color})=>(
-                <figure key={v.id} className="border rounded relative overflow-hidden aspect-[3/2]">
-                  <PatientMosaic visitId={v.id} className="h-full"/>
+                <figure key={v.id} className="border rounded relative overflow-hidden">
+                  <PatientMosaic visitId={v.id}/>
                   <span className={`absolute top-0 left-0 ${color} text-white text-[10px] px-2 py-0.5`}>
                     {label}
                   </span>

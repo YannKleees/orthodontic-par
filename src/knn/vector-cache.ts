@@ -44,10 +44,8 @@ async function loadVisits(pid: string): Promise<Visit[]> {
     const folders = await fs.readdir(root);
     return await Promise.all(
       folders.map(async dir => {
-        const visitFile =
-          (await fs.pathExists(path.join(root, dir, "visit.json")))
-            ? path.join(root, dir, "visit.json")
-            : path.join(root, dir, "meta.json");
+        // meta.json is the single visit file (see backend/utils/visitStore.js)
+        const visitFile = path.join(root, dir, "meta.json");
         return fs.readJson(visitFile);
       }),
     );

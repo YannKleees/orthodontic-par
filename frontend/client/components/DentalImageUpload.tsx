@@ -61,6 +61,7 @@ export function DentalImageUpload({
   const fileRefs = useRef<Record<ViewId, HTMLInputElement | null>>({} as any);
   const [uploading, setUploading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [visitId] = useState(() => `${patientId}-visit-${Date.now()}`);
 
   /**
@@ -74,16 +75,25 @@ export function DentalImageUpload({
     setUploading(true);
 
     const fd = new FormData();
-    views.forEach(v => fd.append("images", v.file!, v.file!.name));
+    // Name each file after its tile so the backend puts it in the right view
+    views.forEach(v => {
+      const ext = v.file!.name.split(".").pop() || "jpg";
+      fd.append("images", v.file!, `${v.id}.${ext}`);
+    });
 
-    const { data: visit } = await apiClient.request<Visit>(
-      `/upload/${patientId}`,
-      { method: "POST", body: fd }
-    );
-
-    setUploading(false);
-    setSubmitted(true);
-    onAllCompleted(visit.id);
+    try {
+      const { data: visit } = await apiClient.request<Visit>(
+        `/upload/${patientId}`,
+        { method: "POST", body: fd }
+      );
+      setSubmitted(true);
+      onAllCompleted(visit.id);
+    } catch (e: any) {
+      setError(e.message);
+      setSubmitted(true);               // stop the auto-submit loop; user can retry
+    } finally {
+      setUploading(false);
+    }
   }
 
   /**
@@ -114,7 +124,14 @@ export function DentalImageUpload({
       {uploading && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-center">
           <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <p className="text-green-800 font-medium">Upload finished – processing…</p>
+          <p className="text-green-800 font-medium">Building the mosaic and running the detector…</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-center text-red-800">
+          <p>{error}</p>
+          <button className="underline mt-1" onClick={() => { setError(null); setSubmitted(false); }}>Try again</button>
         </div>
       )}
 

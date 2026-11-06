@@ -11,3 +11,7 @@ frontend/server/data/
 datasets/
 runs/
 *.log
+models/*.pt
+ml/weights_base/
+runs_train.log
+frontend/dist/

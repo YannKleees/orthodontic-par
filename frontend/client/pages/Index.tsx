@@ -36,8 +36,6 @@ import { MosaicFullscreen } from "../components/MosaicFullscreen";
 import { VisitsTab } from "../components/VisitsTab";
 import { ReportsTab } from "../components/ReportsTab";
 import { DentalImageUpload } from "../components/DentalImageUpload";
-import { DentalMosaicWorkspace } from "../components/DentalMosaicWorkspace";
-import { BulkProcessing } from "../components/BulkProcessing";
 import { SidebarPanels } from "../components/SidebarPanels";
 import { Button } from "../components/ui/button";
 import { cn } from "../lib/utils";
@@ -60,9 +58,7 @@ export interface Tab {
     | "visits"
     | "reports"
     | "similarity"
-    | "upload"
-    | "workspace"
-    | "bulk-processing";
+    | "upload";
   patientId?: string;
   patientName?: string;
   visitId?:    string;   // current visit context for dashboards/workspaces
@@ -157,6 +153,18 @@ export default function Index() {
   /** Focus a tab by id without mutating tab order. */
   const handleTabChange = (tabId: string) => {
     setActiveTabId(tabId);
+  };
+
+  /** Open (or focus) the visit list or report list of a patient in its own tab. */
+  const openPatientPage = (type: "visits" | "reports", patientId: string, patientName: string) => {
+    const id = `${type}-${patientId}`;
+    if (!openTabs.some(t => t.id === id)) {
+      setOpenTabs(prev => [...prev, {
+        id, type, patientId, patientName,
+        name: `${type === "visits" ? "Visits" : "Reports"} - ${patientName}`,
+      }]);
+    }
+    setActiveTabId(id);
   };
 
   /** Begin creating a visit in a dedicated "visit" tab (wizard).
@@ -313,36 +321,12 @@ export default function Index() {
     setActiveTabId(newTab.id);
   };
 
-  /** Compose a workspace tab for interactive PAR editing for a visit. */
-  const makeWorkspaceTab = (
-    visitId: string,
-    patientId: string,
-    patientName: string
-  ): Tab => ({
-    id: `workspace-${visitId}`,
-    name: `Dental Analysis – ${patientName}`,
-    type: "workspace",
-    patientId,
-    patientName,
-  });
-
-  /** Focus an existing workspace or create one. Single-instance per visit
-   *  ensures transactional editing and consistency of overlay state. */
+  /** The PAR editor of a visit is the full-screen mosaic view. */
   const focusOrCreateWorkspace = (
     visitId: string,
     patientId: string,
     patientName: string
-  ) => {
-    const tabId = `workspace-${visitId}`;
-    const existing = openTabs.find(t => t.id === tabId);
-    if (existing) {
-      setActiveTabId(existing.id);
-      return;
-    }
-    const newTab = makeWorkspaceTab(visitId, patientId, patientName);
-    setOpenTabs(prev => [...prev, newTab]);
-    setActiveTabId(newTab.id);
-  };
+  ) => handleOpenMosaicFullscreen(patientId, patientName, visitId);
 
   /** Open (or focus) the image upload tab for a given patient.
    *  This is the typical entrypoint to a new visit’s imaging pipeline. */
@@ -523,7 +507,15 @@ export default function Index() {
                   />
                 </div>
                 {activeTab?.type === "patient" && (
-                  <div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="rounded-full px-4 py-2 text-sm"
+                      onClick={() => openPatientPage("visits", activeTab.id, activeTab.name)}>
+                      Visits
+                    </Button>
+                    <Button variant="outline" className="rounded-full px-4 py-2 text-sm"
+                      onClick={() => openPatientPage("reports", activeTab.id, activeTab.name)}>
+                      Reports
+                    </Button>
                     <Button
                       onClick={() =>
                         handleOpenImageUpload(activeTab.id, activeTab.name)
@@ -567,6 +559,16 @@ export default function Index() {
                     onSave={handlePatientSave}
                     onCancel={() => handleCloseTab(activeTab.id)}
                   />
+                ) : activeTab.type === "visits" ? (
+                  <div className="p-6">
+                    <VisitsTab
+                      patientId={activeTab.patientId!}
+                      patientName={activeTab.patientName!}
+                      onOpenVisit={vid => handleOpenMosaicFullscreen(activeTab.patientId!, activeTab.patientName!, vid)}
+                    />
+                  </div>
+                ) : activeTab.type === "reports" ? (
+                  <ReportsTab patientId={activeTab.patientId!} patientName={activeTab.patientName!} />
                 ) : activeTab.type === "mosaic" ? (
                  (
                    <PARComponentsProvider
@@ -585,18 +587,6 @@ export default function Index() {
                     patientId={activeTab.patientId!}
                     patientName={activeTab.patientName!}
                     onAllCompleted={handleUploadCompleted}
-                  />
-                ) : activeTab.type === "workspace" ? (
-                  <PARComponentsProvider patientId={activeTab.patientId!} visitId={activeTab.visitId}>
-                    <DentalMosaicWorkspace
-                      patientId   ={activeTab.patientId!}
-                      patientName ={activeTab.patientName!}
-                      hasPrevisousVisit={!!activeTab.visitId}
-                    />
-                  </PARComponentsProvider>
-                ) : activeTab.type === "bulk-processing" ? (
-                  <BulkProcessing
-                    onClose={() => handleCloseTab(activeTab.id)}
                   />
                 ) : (
                   /* Fallback: patient-centric cards for visits/reports/similarity */

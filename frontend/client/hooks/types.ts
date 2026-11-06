@@ -22,25 +22,9 @@ export interface PARBox {
 }
 
 /* ---------------------------- Visit ------------------------------ */
-export interface Visit {
-  id              : string;
-  patientId       : string;
-  date            : string;     // ISO-8601 (yyyy-mm-dd)
-  time?           : string;
-  type?           : string;
-  status          : VisitStatus;
-  doctor?         : string;
-  description?    : string;
-  treatmentPhase? : string;
-  parScoreAtVisit?: number;     // clinician-entered scalar (overrides if present)
-  mosaicUrl?      : string;     // relative asset path
-  parScore?       : number;     // model-derived aggregate (Σ component scores)
-  boxes?          : PARBox[];   // component-level annotations
-  nextVisitDate?  : string;
-  notes?          : string;
-  mosaicWidth?    : number;     // intrinsic image width (px)
-  mosaicHeight?   : number;     // intrinsic image height (px)
-}
+// One definition for the whole client, matching what the backend stores
+import type { Visit } from "../lib/api";
+export type { Visit };
 
 /* ---------------------------- Patient ---------------------------- */
 export interface Patient {
@@ -57,28 +41,7 @@ export interface Patient {
   visits          : Visit[];
 }
 
-export interface PARComponent {
-  id: string;
-  component:
-    | "Upper Crowding"
-    | "Lower Crowding"
-    | "Upper Spacing"
-    | "Lower Spacing"
-    | "Overjet"
-    | "Overbite"
-    | "Crossbite"
-    | "Centerline";
-  toothRegion: string;
-  score      : number;
-  maxScore   : number;
-  confidence : number;          // model confidence (0–100, %)
-  previousScore?: number;
-  coordinates: { x:number; y:number; width:number; height:number };
-  viewId     : string;          // mosaic subview identifier
-  editable   : boolean;
-  lastModified?: string;
-  modifiedBy?  : string;
-}
+export type { PARComponent } from "../lib/api";
 
 /* ---------------------------- Similar ---------------------------- */
 export interface SimilarPatient extends Patient {

@@ -59,7 +59,7 @@ interface Ctx {
   loading: boolean;
   error: string | null;
   updateComponent(id: string, patch: Partial<PARComponent>): void;
-  createComponent(comp: Omit<PARComponent, "id">): Promise<PARComponent>;
+  createComponent(comp: Omit<PARComponent, "id" | "lastModified" | "modifiedBy">): Promise<PARComponent>;
   deleteComponent(id: string): Promise<void>;
   getComponentsByView(viewId: string): PARComponent[];
 }
@@ -160,7 +160,7 @@ export function PARComponentsProvider({
 
   /* -------------------- Create (append + total recompute) ----------------- */
   const createComponent = async (
-    comp: Omit<PARComponent, "id">,
+    comp: Omit<PARComponent, "id" | "lastModified" | "modifiedBy">,
   ): Promise<PARComponent> => {
     const { data: created } = await apiClient.createPARComponent(
       patientId,

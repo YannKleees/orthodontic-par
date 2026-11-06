@@ -66,7 +66,7 @@ export function useApi<T>(
 =================================================================== */
 export const usePatients = (opts?: { q?: string; parMin?: number; parMax?: number; severity?: string }) =>
   useApi<Patient[]>(
-    () => apiClient.getPatients(opts),                     // pass the entire filter object
+    () => apiClient.getPatients(opts?.q),                  // backend filters by name/id
     [JSON.stringify(opts ?? {})],                          // deterministic memoization
   );
 

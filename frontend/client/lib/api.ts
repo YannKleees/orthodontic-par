@@ -60,6 +60,9 @@ export interface PARComponent {
   editable: boolean;                    // UI flag for editability
   lastModified: string;                 // ISO timestamp of last change
   modifiedBy: string;                   // Origin of last change
+  source?: "ai" | "clinician";          // who created the box
+  aiLabel?: string;                     // detector class behind an AI suggestion
+  reviewed?: boolean;                   // AI suggestion confirmed/edited by a clinician
 }
 
 /** ==================================================================
@@ -72,54 +75,41 @@ export interface PARComponent {
  * - Generated reports
  * -------------------------------------------------------------------
  */
+export interface AiFinding {
+  label: string;                       // OMNI class, e.g. "tooth_torsion"
+  count: number;
+  maxConfidence: number;               // %
+  views: string[];
+}
+
+/** Result of the automatic analysis stored on a visit (backend/utils/aiAnalysis.js). */
+export interface AiSummary {
+  status: "done" | "no-model" | "failed";
+  ranAt: string;
+  message?: string;
+  model?: string;
+  confidenceThreshold?: number;
+  suggestions?: number;
+  findings?: AiFinding[];
+  applianceDetected?: boolean;
+  mandibularRetrusion?: boolean;
+}
+
 export interface Visit {
   id: string;
   patientId: string;
-  date: string;                        // ISO timestamp of creation
-  images: File[] | string[];           // Original intraoral images (File in browser or path string)
-  notes?: string;                      // Clinician general notes
-
-  /** Automated AI Analysis results */
-  aiAnalysis: {
-    parScore: number;
-    parComponents: {
-      upperCrowding: number;
-      lowerCrowding: number;
-      upperSpacing: number;
-      lowerSpacing: number;
-      overjet: number;
-      overbite: number;
-      crossbite: number;
-      centerline: number;
-    };
-    detectedConditions: string[];     // Named conditions detected
-    treatmentUrgency: "low" | "medium" | "high" | "emergency";
-    confidence: number;               // Aggregate AI model confidence
-    processingTime: string;           // Duration of AI pipeline
-    mosaicImageUrl?: string;          // Path to generated mosaic image
-  };
-
-  /** Clinician review of AI findings */
-  doctorReview: {
-    status: "pending" | "reviewed" | "approved";
-    reviewedBy?: string;
-    reviewDate?: string;
-    modifiedPARScore?: number;        // If clinician adjusted score
-    doctorNotes?: string;
-    treatmentRecommendations?: string[];
-  };
-
-  /** Generated clinical report */
-  report: {
-    id: string;
-    generatedAt: string;
-    type: "AI Generated" | "Doctor Reviewed";
-    content: string;
-    downloadUrl?: string;
-  };
-
-  status: "analyzing" | "completed" | "reviewed"; // Processing/review state
-  createdAt: string;
+  date: string;                        // ISO timestamp
+  status: "completed" | "upcoming" | "cancelled" | "analyzing" | "reviewed";
+  notes?: string;
+  mosaicUrl?: string;                  // thumbnail, /static/...
+  mosaicFullUrl?: string;              // full resolution, box coordinates refer to this
+  parScore: number;                    // weighted PAR total of `boxes`
+  boxes: PARComponent[];
+  ai?: AiSummary;
+  type?: string;
+  time?: string;
+  doctor?: string;
+  updatedAt?: string;
 }
 
 /** ==================================================================
@@ -129,16 +119,14 @@ export interface Visit {
 export interface Report {
   id: string;
   patientId: string;
+  visitId: string;
   name: string;
-  date: string;
-  type: "AI Analysis" | "Clinical" | "Planning" | "Progress";
-  status: "ready" | "draft" | "pending";
+  date: string;                         // ISO, when the PDF was generated
+  type: string;
+  status: "ready";
   description: string;
-  parScore?: number;
-  generatedBy: string;                 // Origin (AI system / clinician)
-  fileUrl?: string;                     // Download path
-  findings: string[];
-  recommendations: string[];
+  parScore: number;
+  fileUrl: string;                      // /static/reports/<pid>/<id>.pdf
 }
 
 /** ==================================================================
@@ -193,13 +181,11 @@ export interface ApiResponse<T> { success:boolean; data:T }
 // API Client class
 class ApiClient {
   private baseURL: string;
-  private isDevelopment: boolean;
 
   constructor() {
     const fromEnv = import.meta.env.VITE_API_URL?.trim() ?? "";
     this.baseURL = (fromEnv || "/api").replace(/\/+$/, "");
     // fallback to the proxy “/api” when VITE_API_URL is not set
-    this.isDevelopment = false;                     // flip to `true` for mocks
   }
 
   /* -------------------------------------------------------------- */
@@ -209,11 +195,6 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
-
-    /* ----------  dev mode fake data  ---------- */
-    if (this.isDevelopment && endpoint.includes("/par-components/")) {
-      return this.handleMockPARRequest<T>(endpoint, options);
-    }
 
     /* ----------  tidy up headers & body  ---------- */
     const { body, headers = {}, ...rest } = options;
@@ -251,65 +232,6 @@ class ApiClient {
 
     return data;
   }
-
-  /* -------------------------------------------------------------- */
-  /* very small mock layer used only when this.isDevelopment = true  */
-  /* -------------------------------------------------------------- */
-  private async handleMockPARRequest<T>(
-    _endpoint: string,
-    opts: RequestInit = {},
-  ): Promise<ApiResponse<T>> {
-
-    await new Promise(r => setTimeout(r, 120));      // simulate latency
-
-    /* CRUD stubs -------------------------------------------------- */
-    switch (opts.method) {
-      case "POST":
-        return { success: true, data: { id: `comp-${Date.now()}` } as T };
-      case "PUT":
-      case "DELETE":
-        return { success: true, data: {} as T };
-      default: {                                      // GET
-        const demo: any[] = [
-          {
-            id: "comp-1",
-            component: "Upper Crowding",
-            toothRegion: "Anterior",
-            score: 4,
-            maxScore: 5,
-            confidence: 94,
-            coordinates: { x: 180, y: 120, width: 120, height: 80 },
-            viewId: "centre",
-            editable: true,
-          },
-          {
-            id: "comp-2",
-            component: "Lower Crowding",
-            toothRegion: "Anterior",
-            score: 3,
-            maxScore: 5,
-            confidence: 89,
-            coordinates: { x: 200, y: 220, width: 100, height: 70 },
-            viewId: "centre",
-            editable: true,
-          },
-          {
-            id: "comp-3",
-            component: "Overjet",
-            toothRegion: "Incisors",
-            score: 6,
-            maxScore: 9,
-            confidence: 91,
-            coordinates: { x: 220, y: 160, width: 80, height: 60 },
-            viewId: "centre",
-            editable: true,
-          },
-        ];
-        return { success: true, data: demo as T };
-      }
-    }
-  }
-
 
   // Patients API
   async getPatients(search?: string): Promise<ApiResponse<Patient[]>> {
@@ -549,14 +471,25 @@ async downloadReport(patientId: string, reportId: string): Promise<void> {
     });
   }
 
+  /** Create a PDF for one visit (default: the latest completed visit). */
   async generateReport(
     patientId: string,
-    type?: string,
+    visitId?: string,
   ): Promise<ApiResponse<Report>> {
     return this.request<Report>(`/reports/${patientId}/generate`, {
       method: "POST",
-      body: JSON.stringify({ type }),
+      body: JSON.stringify({ visitId }),
     });
+  }
+
+  /** One visit of a patient; visitId may be "latest". */
+  async getPatientVisit(patientId: string, visitId: string): Promise<ApiResponse<Visit>> {
+    return this.request<Visit>(`/visits/${patientId}/${visitId}`);
+  }
+
+  /** Re-run the detector on a visit's stored photos. */
+  async analyzeVisit(patientId: string, visitId: string): Promise<ApiResponse<Visit>> {
+    return this.request<Visit>(`/visits/${patientId}/${visitId}/analyze`, { method: "POST" });
   }
 
   async getReportSummary(patientId: string): Promise<

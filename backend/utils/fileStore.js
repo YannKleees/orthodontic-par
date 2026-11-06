@@ -1,7 +1,10 @@
 import path from "path";
 import fs   from "fs-extra";
 const { join } = path;
-export const DATA    = join(process.cwd(), "data");
+import { DATA_DIR as CONFIG_DATA_DIR } from "../config.js";
+
+// One data root for the whole backend (DATA_DIR env var or backend/data)
+export const DATA    = CONFIG_DATA_DIR;
 export const PATIENT = join(DATA, "patients");
 export const UPLOADS = join(DATA, "uploads");          // ⇠ legacy – still used by FE
 export const DATA_DIR = DATA;

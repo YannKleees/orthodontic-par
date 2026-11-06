@@ -1,219 +1,118 @@
 /**
  * @file ReportsTab.tsx
- * @brief Read-only listing and quick actions for patient reports.
- *
- * @description
- * Displays a curated set of clinical report cards (e.g., imaging, lab,
- * consultation). Each card shows type, status, author, date, and a concise
- * synopsis suitable for clinical review. Action buttons are stubs that can be
- * wired to view/download flows or report generation.
+ * PDF reports of one patient: list, generate (latest visit or a chosen visit),
+ * open, download and delete. Data comes from /api/reports.
  */
-
-import { FileText, Download, Eye, Calendar, User, Plus } from "lucide-react";
+import { useState } from "react";
+import { FileText, Download, Eye, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { apiClient, type Report, type Visit } from "@/lib/api";
+import { useReports, useVisits } from "@/hooks/useApi";
 
-/**
- * Props for the reports tab.
- */
 interface ReportsTabProps {
-  /** Patient display name for context headers. */
   patientName: string;
-  /** Patient identifier used when wiring real data sources. */
   patientId: string;
 }
 
-/**
- * Canonical report structure for dental/orthodontic workflows.
- *
- * @remarks
- * - `type` denotes clinical modality; use to color-code or filter.
- * - `status` distinguishes preliminary vs signed-off results.
- */
-interface Report {
-  id: string;
-  title: string;
-  type: "lab" | "imaging" | "consultation" | "discharge";
-  date: string;
-  doctor: string;
-  status: "final" | "preliminary" | "pending";
-  summary: string;
-}
-
-/**
- * ReportsTab
- *
- * @param patientName Render context for headings.
- * @param patientId   Reserved for future data fetching integration.
- *
- * @remarks
- * - Placeholder dataset is used; swap with API data when backend is available.
- * - Cards are keyboard-accessible; actions expose predictable labels.
- * - Color treatment communicates modality and report status at a glance.
- */
 export function ReportsTab({ patientName, patientId }: ReportsTabProps) {
-  const reports: Report[] = [
-    {
-      id: "1",
-      title: "Intraoral Imaging Analysis",
-      type: "imaging",
-      date: "2024-01-15",
-      doctor: "Dr. Sarah Johnson, DDS",
-      status: "final",
-      summary:
-        "AI analysis detected 2 caries on teeth 36 and 11. Moderate periodontal involvement on tooth 46. Treatment plan: composite fillings and scaling.",
-    },
-    {
-      id: "2",
-      title: "Periodontal Assessment",
-      type: "lab",
-      date: "2024-01-14",
-      doctor: "Dr. Michael Chen, DDS",
-      status: "final",
-      summary:
-        "Comprehensive periodontal charting completed. Average pocket depth 3.2mm. Localized 5-6mm pockets on posterior teeth requiring SRP.",
-    },
-    {
-      id: "3",
-      title: "Treatment Consultation",
-      type: "consultation",
-      date: "2024-01-13",
-      doctor: "Dr. Sarah Johnson, DDS",
-      status: "final",
-      summary:
-        "Patient discussed treatment options for caries management. Preventive protocol established. Follow-up in 3 months for re-evaluation.",
-    },
-    {
-      id: "4",
-      title: "Panoramic Radiograph",
-      type: "imaging",
-      date: "2024-01-12",
-      doctor: "Dr. Robert Wilson, DDS",
-      status: "preliminary",
-      summary:
-        "Panoramic x-ray shows third molar impaction on lower left. No pathology detected. Extraction consultation recommended.",
-    },
-  ];
+  const { data: reports, loading, error, refetch } = useReports(patientId);
+  const { data: visits } = useVisits(patientId);
+  const completed = (visits ?? [])
+    .filter((v: Visit) => v.status === "completed")
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
 
-  /** Visual classes for report modality semantics. */
-  const typeColors: Record<Report["type"], string> = {
-    lab: "bg-blue-100 text-blue-800",
-    imaging: "bg-purple-100 text-purple-800",
-    consultation: "bg-green-100 text-green-800",
-    discharge: "bg-orange-100 text-orange-800",
-  };
+  const [visitId, setVisitId] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  /** Visual classes for report verification state. */
-  const statusColors: Record<Report["status"], string> = {
-    final: "bg-green-100 text-green-800",
-    preliminary: "bg-yellow-100 text-yellow-800",
-    pending: "bg-gray-100 text-gray-800",
-  };
+  async function generate() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await apiClient.generateReport(patientId, visitId || undefined);
+      await refetch();
+    } catch (e: any) {
+      setMessage(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  /**
-   * Placeholder action for generating a new report.
-   * Replace with navigation or mutation that triggers report creation.
-   */
-  const handleGenerateReport = () => {
-    alert("Generate new report functionality would be implemented here");
-  };
-
-  /**
-   * Placeholder action for opening a report detail view.
-   * @param reportId Target report identifier.
-   */
-  const handleViewReport = (reportId: string) => {
-    alert(`View report ${reportId} functionality would be implemented here`);
-  };
-
-  /**
-   * Placeholder action for downloading a report artifact.
-   * @param reportId Target report identifier.
-   */
-  const handleDownloadReport = (reportId: string) => {
-    alert(`Download report ${reportId} functionality would be implemented here`);
-  };
+  async function remove(r: Report) {
+    await apiClient.deleteReport(patientId, r.id);
+    await refetch();
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-on-surface">
-            Reports - {patientName}
-          </h2>
-          <p className="text-on-surface-variant">Medical reports and test results</p>
+          <h2 className="text-2xl font-semibold text-on-surface">Reports – {patientName}</h2>
+          <p className="text-on-surface-variant">
+            PDF with the mosaic, PAR breakdown, change since the first visit and the AI findings
+          </p>
         </div>
-        <Button onClick={handleGenerateReport} className="gap-2" aria-label="Generate report">
-          <Plus className="w-4 h-4" />
-          Generate Report
-        </Button>
+        <div className="flex items-center gap-2">
+          <select
+            className="h-9 rounded-md border px-2 text-sm bg-white"
+            value={visitId}
+            onChange={e => setVisitId(e.target.value)}
+            aria-label="Visit to report on"
+          >
+            <option value="">Latest visit</option>
+            {completed.map(v => (
+              <option key={v.id} value={v.id}>
+                {new Date(v.date).toLocaleDateString()} (PAR {v.parScore ?? 0})
+              </option>
+            ))}
+          </select>
+          <Button onClick={generate} disabled={busy || completed.length === 0} className="gap-2">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Generate report
+          </Button>
+        </div>
       </div>
 
+      {completed.length === 0 && (
+        <p className="text-sm text-gray-500 mb-4">Add a visit with the five photos first; reports need at least one.</p>
+      )}
+      {message && <p className="text-sm text-red-600 mb-4">{message}</p>}
+      {error && <p className="text-sm text-red-600 mb-4">Could not load reports: {String(error)}</p>}
+      {loading && <p className="text-sm text-gray-500">Loading reports…</p>}
+
       <div className="space-y-4">
-        {reports.map((report) => (
-          <Card key={report.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
+        {(reports as Report[] | null)?.map(r => (
+          <Card key={r.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{report.title}</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={typeColors[report.type]}>
-                    {report.type.charAt(0).toUpperCase() + report.type.slice(1)}
-                  </Badge>
-                  <Badge variant="outline" className={statusColors[report.status]}>
-                    {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
-                  </Badge>
-                </div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="w-4 h-4" /> {r.name}
+                </CardTitle>
+                <span className="text-sm font-medium">PAR {r.parScore}</span>
               </div>
             </CardHeader>
-
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-on-surface-variant" aria-hidden />
-                  <span className="font-medium">Date:</span>
-                  <span>{new Date(report.date).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="w-4 h-4 text-on-surface-variant" aria-hidden />
-                  <span className="font-medium">Doctor:</span>
-                  <span>{report.doctor}</span>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                <div className="flex items-start gap-2">
-                  <FileText className="w-4 h-4 text-on-surface-variant mt-0.5" aria-hidden />
-                  <div>
-                    <span className="font-medium text-sm">Summary:</span>
-                    <p className="text-sm text-on-surface-variant mt-1">{report.summary}</p>
-                  </div>
-                </div>
-              </div>
-
+              <p className="text-sm text-on-surface-variant mb-3">
+                {r.description}. Generated {new Date(r.date).toLocaleString()}.
+              </p>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleViewReport(report.id)}
-                  aria-label={`View report ${report.title}`}
-                >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View
+                <Button variant="outline" size="sm" asChild>
+                  <a href={r.fileUrl} target="_blank" rel="noreferrer"><Eye className="w-4 h-4 mr-1" />Open</a>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownloadReport(report.id)}
-                  aria-label={`Download report ${report.title}`}
-                >
-                  <Download className="w-4 h-4 mr-1" />
-                  Download
+                <Button variant="outline" size="sm" asChild>
+                  <a href={`/api/reports/${patientId}/${r.id}/download`}><Download className="w-4 h-4 mr-1" />Download</a>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => remove(r)} aria-label={`Delete ${r.name}`}>
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
           </Card>
         ))}
+        {!loading && reports && (reports as Report[]).length === 0 && (
+          <p className="text-center text-gray-500 py-8">No reports yet.</p>
+        )}
       </div>
     </div>
   );
