@@ -1,0 +1,51 @@
+---
+
+#### **`requirements.txt`** (only to keep plain‑txt mirror in sync)  
+
+```diff
+# Core ML/AI dependencies
+torch>=2.1
+torchvision>=0.18
+ultralytics>=8.2
+opencv-python
+numpy
+pillow
+
+# Data handling
+pyyaml
+datasets
+huggingface-hub
+
+# Scientific computing
+matplotlib
+scipy
+scikit-learn
+
+# Web framework (FastAPI backend)
+fastapi
+uvicorn[standard]
+python-multipart
+sqlmodel
+
+# Similarity search
+faiss-cpu
+sentence-transformers
+
+# UI/CLI dependencies
+questionary
+tqdm
+
+# Development and testing
+pytest>=8.0
+black
+ruff
+
+# Optional telemetry (auto-disabled if API key missing)
+wandb
+
+# Optional dataset download
+kaggle
+
+# CORS for development
+python-multipart
+```

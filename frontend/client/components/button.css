@@ -1,0 +1,62 @@
+/**
+ * @file button.css
+ * @description
+ * Tokenized pill-shaped call-to-action button with tooltip.
+ * Visual intent:
+ * - Highly rounded geometry (border-radius: 9999px) signals primary action.
+ * - CSS variables expose button/tooltip sizing and color for quick theming.
+ * Accessibility:
+ * - Tooltip content drawn from data-tooltip attribute.
+ * - Transitions are purely cosmetic; no layout coupling.
+ */
+
+/* Design tokens and button base */
+.button {
+  --width: 100px;
+  --height: 35px;
+  --tooltip-height: 35px;
+  --tooltip-width: 90px;
+  --gap-between-tooltip-to-button: 18px;
+
+  --button-color: #1163ff;
+  --tooltip-color: #ffffff;
+
+  width: var(--width);
+  height: var(--height);
+  background: var(--button-color);
+  border-radius: 9999px;
+  position: relative;
+  text-align: center;
+  font-family: "Arial";
+  transition: background 0.3s;
+}
+
+/* Tooltip bubble: reads text from data-tooltip attribute */
+.button::before {
+  position: absolute;
+  content: attr(data-tooltip);
+  width: var(--tooltip-width);
+  height: var(--tooltip-height);
+  background-color: var(--tooltip-color);
+  font-size: 0.9rem;
+  color: #111;
+  border-radius: 0.35em;
+  line-height: var(--tooltip-height);
+  bottom: calc(var(--height) + var(--gap-between-tooltip-to-button) + 10px);
+  left: calc(50% - var(--tooltip-width) / 2);
+}
+
+/* Visibility/transition hooks for tooltip + arrow (arrow unchanged elsewhere) */
+.button::after,
+.button::before {
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.5s;
+}
+
+/* Structural placeholders preserved intentionally */
+.button-wrapper,
+.text,
+.icon {
+  /* (intentionally left as-is to respect existing site-wide rules) */
+}

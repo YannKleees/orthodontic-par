@@ -1,0 +1,135 @@
+/* ============================================================================
+ * global.css — Tailwind preflight + design tokens (HSL)
+ * =============================================================================
+ * THEME CONTRACT
+ *  - Tailwind config consumes HSL tokens via CSS variables. Using HSL allows
+ *    perceptually smoother hue/saturation adjustments and consistent alpha ops.
+ *  - Light/Dark tokens are isomorphic; only values switch in `.dark` scope.
+ * ACCESSIBILITY
+ *  - Foreground/background pairs target WCAG AA contrast on typical surfaces.
+ *  - Motion: minimal keyframed entrance animation with short duration to reduce
+ *    vestibular load while preserving affordance.
+ * ========================================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Color tokens — express values as HSL components (no `hsl()` wrapper here).
+   * Tailwind theme reads these via `hsl(var(--token))`.
+   */
+  :root {
+    --background: 0 0% 96.1%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 210 60% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 250 13% 86%;
+    --input: 250 13% 86%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar + surface system for application shells */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --surface: 0 0% 100%;
+    --surface-container: 251 25% 93%;
+    --surface-container-high: 251 25% 93%;
+    --on-surface: 253 7% 11%;
+    --on-surface-variant: 252 7% 31%;
+    --text-secondary: 251 13% 65%;
+    --search-background: 205 25% 89%;
+    --patient-tab: 251 100% 95%;
+  }
+
+  .dark {
+    /* Dark-mode tokens mirror the same semantic contract as :root */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 60% 65%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --surface: 217.2 32.6% 17.5%;
+    --surface-container: 217.2 32.6% 17.5%;
+    --surface-container-high: 217.2 32.6% 17.5%;
+    --on-surface: 210 40% 98%;
+    --on-surface-variant: 215 20.2% 65.1%;
+    --text-secondary: 215 20.2% 65.1%;
+    --search-background: 217.2 32.6% 17.5%;
+    --patient-tab: 217.2 32.6% 17.5%;
+  }
+}
+
+/* Micro-animation: short, non-intrusive downward slide-in (≈220ms) */
+.animate-slide-down{animation:slideDown .22s ease-out both}
+@keyframes slideDown{from{opacity:0;transform:translateY(-4px)}
+                     to{opacity:1;transform:translateY(0)}}
+
+@layer base {
+  /* Harmonize borders across components via theme token */
+  * { @apply border-border; }
+
+  /* Global body foreground/background binding to tokens */
+  body { @apply bg-background text-foreground; }
+}

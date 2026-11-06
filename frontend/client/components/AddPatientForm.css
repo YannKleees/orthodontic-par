@@ -1,0 +1,157 @@
+/* =============================================================================
+   AddPatientForm.css
+   -----------------------------------------------------------------------------
+   Styles for floating-label form controls with per-character animation, 
+   date-input placeholder suppression, and animated call-to-action buttons.
+============================================================================= */
+
+/* -------------------- Floating-label text input ----------------------------
+   - Positions label absolutely above input baseline
+   - Animates each label character independently
+   - Supports hint text fade-in when label floats
+----------------------------------------------------------------------------- */
+.form-control {
+  position: relative;
+  margin: 20px 0 58px;
+  width: 100%;
+}
+
+.form-control input {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px #000 solid;
+  padding: 15px 0 6px;
+  font-size: 18px;
+  color: #000;
+}
+
+.form-control input:focus,
+.form-control input:valid {
+  outline: 0;
+  border-bottom-color: #000;
+}
+
+.form-control label {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  pointer-events: none;
+}
+
+.form-control label span.char {
+  display: inline-block;
+  min-width: 5px;
+  font-size: 18px;
+  color: #000;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+              color 0.3s;
+}
+
+.form-control label .hint {
+  opacity: 0;
+  margin-left: 4px;
+  font-size: 13px;
+  color: #555;
+  transition: opacity 0.3s;
+}
+
+/* -------------------- Date input placeholder suppression -------------------
+   For type="date" controls: hide built-in placeholder text until focus/value.
+   Implements WebKit/Blink, Firefox, and :placeholder-shown generic fallback.
+----------------------------------------------------------------------------- */
+
+/* WebKit/Blink browsers */
+.form-control input[type="date"]:not(:focus):not(:valid)::-webkit-datetime-edit {
+  color: transparent;
+}
+/* Firefox */
+.form-control input[type="date"]:not(:focus):not(:valid)::-moz-placeholder {
+  color: transparent;
+}
+/* Fallback via placeholder-shown */
+.form-control input[type="date"]:placeholder-shown {
+  color: transparent;
+}
+
+/* When focused or valid, restore text color with delayed transition */
+.form-control input[type="date"]:focus::-webkit-datetime-edit,
+.form-control input[type="date"]:valid::-webkit-datetime-edit,
+.form-control input[type="date"]:focus::-moz-placeholder,
+.form-control input[type="date"]:valid::-moz-placeholder {
+  color: #000;
+  transition: color 0.2s ease 1s;
+}
+.form-control input[type="date"]:not(:placeholder-shown) {
+  color: #000;
+  transition: color 0.2s ease 1s;
+}
+
+/* -------------------- Label float-up triggers ----------------------------- */
+.form-control input:focus + label span.char,
+.form-control input:valid + label span.char {
+  transform: translateY(-26px) scale(0.8);
+}
+.form-control input:focus + label .hint,
+.form-control input:valid + label .hint {
+  opacity: 1;
+}
+
+/* -------------------- Animated call-to-action button -----------------------
+   - Uses ::before-style `.button-decor` layer for slide-in color transition
+   - Splits icon/text for layout stability during animation
+----------------------------------------------------------------------------- */
+.button {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  border-radius: 2rem;
+  box-shadow: 20px 10px 20px rgba(109, 118, 121, 0.644);
+  background-color: #f0f7f7;
+  color: #0b0b0b;
+  cursor: pointer;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.button-decor {
+  position: absolute;
+  inset: 0;
+  background-color: var(--clr);
+  transform: translateX(-90%);
+  transition: transform 0.5s;
+  z-index: 0;
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  position: relative;
+  overflow: hidden;
+}
+
+.button__icon {
+  width: 48px;
+  height: 40px;
+  background-color: var(--clr);
+  display: grid;
+  place-items: center;
+}
+
+.button__text {
+  padding: 2px 0.1rem 2px 11rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+
+.button:hover .button__text {
+  color: #fff;
+}
+
+.button:hover .button-decor {
+  transform: translateX(0);
+}

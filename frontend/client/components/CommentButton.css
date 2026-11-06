@@ -1,0 +1,78 @@
+/**
+ * @file bookmark-button.css
+ * @purpose
+ *   Standalone pill-shaped "bookmark" CTA with icon expansion on hover.
+ *   Isolated from Tailwind preflight to preserve exact geometry/animation.
+ *
+ * @interaction
+ *   - Default: icon + text.
+ *   - :hover: icon container expands to cover text; text collapses (width→0).
+ *   - :active: micro-scale for tactile feedback.
+ *
+ * @accessibility
+ *   - Visual transitions only; does not interfere with layout or focus order.
+ *   - Pair with an aria-label on the triggering element in JSX.
+ */
+
+.bookmarkBtn {
+  width: 130px;
+  height: 40px;
+  border-radius: 40px;
+  border: none;
+  background-color: rgb(255, 255, 255);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition-duration: .3s;
+  overflow: hidden;
+  box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.062);
+}
+
+.IconContainer {
+  width: 30px;
+  height: 30px;
+  background-color: rgb(37, 99, 235);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 2;
+  transition-duration: .3s;
+}
+
+.icon {
+  border-radius: 1px;
+}
+
+.text {
+  height: 100%;
+  width: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(26, 26, 26);
+  z-index: 1;
+  transition-duration: .3s;
+  font-size: 1.04em;
+  font-weight: 600;
+}
+
+.bookmarkBtn:hover .IconContainer {
+  width: 120px;
+  border-radius: 40px;
+  transition-duration: .3s;
+}
+
+.bookmarkBtn:hover .text {
+  transform: translate(10px);
+  width: 0;
+  font-size: 0;
+  transition-duration: .3s;
+}
+
+.bookmarkBtn:active {
+  transform: scale(0.95);
+  transition-duration: .3s;
+}

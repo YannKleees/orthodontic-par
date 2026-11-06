@@ -1,0 +1,426 @@
+/* ───── original +‑button & Ask‑AI search bar (unchanged) ───────── */
+.plusButton{--plus_sideLength:2.5rem;--plus_topRightTriangleSideLength:.9rem;
+position:relative;display:flex;justify-content:center;align-items:center;
+width:var(--plus_sideLength);height:var(--plus_sideLength);background:#fff;
+border:1px solid #fff;overflow:hidden;cursor:pointer;outline:none}
+.plusButton::before{content:"";position:absolute;top:0;right:0;width:0;height:0;
+border-style:solid;border-width:0 var(--plus_topRightTriangleSideLength)
+               var(--plus_topRightTriangleSideLength) 0;
+border-color:transparent #fff transparent transparent;
+transition:border-width .2s ease-in-out}
+.plusButton:hover::before,
+.plusButton:focus-visible::before{
+  --plus_topRightTriangleSideLength:calc(var(--plus_sideLength)*2)}
+.plusButton:hover .plusIcon,
+.plusButton:focus-visible .plusIcon{transform:rotate(180deg);fill:#fff}
+.top-controls{margin-top:6px} /* = mt‑1.5 */
+/* Ask‑AI search bar ...................................................................... */
+.ask-ai-wrapper{width:280px;position:relative}
+
+/* (full search‑bar CSS you pasted earlier, kept verbatim) */
+.ai-input-container{position:relative;display:flex;align-items:center;background:#fff;border:2px solid #ffffff;border-radius:12px;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,.1);transition:all .5s cubic-bezier(.65,0,.35,1);overflow:hidden}
+.ai-input-container:hover,
+.ai-input-container:has(.ai-input:focus){border-color:#ff6b6b;box-shadow:0 6px 20px rgba(255,107,107,.3);transform:translateY(-4px)}
+.ai-input{flex-grow:1;background:transparent;border:none;outline:none;font-size:1rem;color:#333;padding:6px 10px}
+.ai-input::placeholder{color:#888;font-style:italic}
+.icon-container{position:relative;width:24px;height:24px;cursor:pointer;display:grid;place-items:center}
+.ai-icon{width:20px;height:20px;stroke:#4a4a4a;stroke-width:2;transition:all .5s cubic-bezier(.4,0,.2,1)}
+.ai-input-container:hover .ai-icon,
+.ai-input:focus + .icon-container .ai-icon{stroke:#ff6b6b;transform:scale(1.1) rotate(5deg)}
+.underline-effect{position:absolute;bottom:0;left:0;width:0;height:2px;background:#ff6b6b;transition:width .6s cubic-bezier(.25,.8,.25,1)}
+.ai-input-container:hover .underline-effect,
+.ai-input-container:has(.ai-input:focus) .underline-effect{width:100%}
+.ripple-circle{position:absolute;top:50%;left:50%;width:0;height:0;background:rgba(249,247,247,.15);border-radius:50%;transform:translate(-50%,-50%);transition:width .7s,height .7s}
+.ai-input-container:hover .ripple-circle,
+.ai-input-container:has(.ai-input:focus) .ripple-circle{width:200px;height:200px}
+.floating-dots{position:absolute;inset:0;pointer-events:none}
+.floating-dots span{position:absolute;width:3px;height:3px;background:#ff6b6b;border-radius:50%;opacity:0;animation:floatUp 1.2s infinite}
+@keyframes floatUp{0%{transform:translate(var(--x),var(--y)) scale(1);opacity:0}50%{transform:translate(var(--x),calc(var(--y) - 15px)) scale(1.3);opacity:1}100%{transform:translate(var(--x),calc(var(--y) - 30px)) scale(1);opacity:0}}
+.floating-dots span:nth-child(1){--x:10px;--y:10px;animation-delay:0s}
+.floating-dots span:nth-child(2){--x:-5px;--y:5px;animation-delay:.2s}
+.floating-dots span:nth-child(3){--x:15px;--y:0px;animation-delay:.4s}
+.floating-dots span:nth-child(4){--x:-10px;--y:15px;animation-delay:.6s}
+.bg-fade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,107,107,.05),rgba(255,235,235,.1));opacity:0;transition:opacity .5s}
+.ai-input-container:hover .bg-fade,
+.ai-input-container:has(.ai-input:focus) .bg-fade{opacity:1}
+
+/* ───── new filter‑card styles ───── */
+.filter-card{backdrop-filter:blur(4px);background:#f8fafc;border:1px solid #e2e8f0;
+padding:1rem;border-radius:1.25rem}
+.facet-title{font-size:.75rem;font-weight:600;color:#64748b;margin-bottom:.25rem}
+
+/* radio‑tile (your blue style) .................................... */
+.radio-inputs{display:flex;flex-wrap:wrap;align-items:center;user-select:none;max-width:350px}
+.radio-inputs>*{margin:6px}
+
+.radio-input{clip:rect(0 0 0 0);-webkit-clip-path:inset(100%);clip-path:inset(100%);height:1px;width:1px;overflow:hidden;position:absolute}
+.radio-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;
+width:80px;min-height:80px;border-radius:.5rem;border:2px solid #b5bfd9;background:#fff;
+box-shadow:0 5px 10px rgba(0,0,0,.1);transition:.15s ease;cursor:pointer;position:relative}
+.radio-tile::before{content:"";position:absolute;width:.75rem;height:.75rem;border:2px solid #b5bfd9;background:#fff;border-radius:50%;top:.25rem;left:.25rem;opacity:0;transform:scale(0);transition:.25s ease}
+.radio-label{color:#707070;font-size:13px;text-align:center;transition:.375s ease}
+.radio-input:checked+.radio-tile{border-color:#1a4cd9;box-shadow:0 5px 10px rgba(0,0,0,.1);color:#2260ff}
+.radio-input:checked+.radio-tile::before{transform:scale(1);opacity:1;background:#2260ff;border-color:#2260ff}
+.radio-input:checked+.radio-tile .radio-label{color:#1a4cd9}
+.radio-tile:hover{border-color:#1a4cd9}
+.radio-tile:hover::before{transform:scale(1);opacity:1}
+
+/* Small variant for facets with many options */
+.radio-tile.small {
+  min-height: 36px;
+  width: auto;
+  padding: 4px 12px;
+}
+
+/* Filter drawer styling */
+.filter-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: white;
+  z-index: 50;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.filter-drawer-inner {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.drawer-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.sort-dir-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  margin-top: 8px;
+  transition: all 0.2s;
+}
+
+.sort-dir-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.btn-primary {
+  background: #1a4cd9;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: #1a4cd9;
+}
+
+.link {
+  color: #64748b;
+  font-size: 14px;
+  padding: 8px 16px;
+}
+
+.link:hover {
+  color: #334155;
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.result-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.badge.blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.green {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge.yellow {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge.gray {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.floating-label {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0 8px;
+  background: white;
+  font-size: 14px;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: all 0.2s;
+}
+
+.search-ico {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #2260ff;
+}
+
+.clear-ico {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+input:focus ~ .floating-label,
+input:not(:placeholder-shown) ~ .floating-label {
+  top: 0;
+  font-size: 12px;
+  color: #2260ff;
+}
+
+/* animation helpers */
+@keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1}}
+.animate-fade-in{animation:fadeIn .25s ease-out both}
+
+/* list & badge layout (kept) ...................................... */
+.hl{background:#fef08a;color:#a16207;font-weight:500}
+
+.filter-drawer{
+  position:fixed;right:0;top:0;height:100vh;width:320px;max-width:90vw;
+  background:#ffffffee;backdrop-filter:blur(8px);
+  box-shadow:-6px 0 24px rgba(0,0,0,.08);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  z-index:70;padding:1.25rem;
+}
+.filter-drawer-inner{height:100%;overflow-y:auto}
+.drawer-title{font-weight:600;font-size:1rem;color:#1e293b}
+
+.sort-dir-btn{
+  margin-top:.5rem;display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border:1px solid #cbd5e1;border-radius:.5rem;
+  background:#f1f5f9;transition:.2s
+}
+.sort-dir-btn:hover{background:#e2e8f0}
+
+.chips-row{display:flex;flex-wrap:wrap;align-items:center;
+          gap:.4rem;margin-top:.5rem}
+.chip{display:flex;align-items:center;font-size:.75rem;
+      background:#f1f5f9;border-radius:9999px;padding:2px 6px}
+.result-count{font-size:.72rem;color:#475569;margin-left:auto}
+
+.badge{font-size:.65rem;border-radius:.25rem;padding:0 4px}
+.badge.blue{background:#bfdbfe;color:#1e40af}
+.badge.green{background:#bbf7d0;color:#166534}
+.badge.yellow{background:#fef9c3;color:#854d0e}
+.badge.red{background:#fecaca;color:#991b1b}
+.badge.gray{background:#e2e8f0;color:#475569}
+
+.empty{height:3.5rem;display:flex;align-items:center;justify-content:center;
+      color:#64748b;font-size:.875rem}
+
+/* tiny radio tile for sort fields */
+.radio-tile.small{width:68px;min-height:68px}
+
+/* floating label reused */
+.floating-label{position:absolute;left:1rem;top:50%;transform:translateY(-50%);
+                padding:0 .125rem;font-weight:300;font-size:1rem;background:#fff;
+                transition:.15s}
+input:focus + .floating-label,
+input:not(:placeholder-shown) + .floating-label{
+  top:0;left:.75rem;font-size:.8rem;color:#4070f4
+}
+
+/* clear & search icons */
+.clear-ico,.search-ico{
+  position:absolute;right:.75rem;top:50%;transform:translateY(-50%);
+  width:1rem;height:1rem}
+.clear-ico{color:#6b7280;cursor:pointer}
+.search-ico{color:#4070f4}
+
+/* animate highlight */
+.hl{background:#fde047;color:#92400e;font-weight:500}
+
+/* Add these styles to your existing PatientSidebar.css file */
+
+.facet-section {
+  margin-top: 1.5rem;
+}
+
+.facet-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.facet-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.facet-values.scrollable {
+  max-height: 150px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.facet-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.facet-checkbox {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.25rem;
+  border: 1.5px solid #d1d5db;
+  accent-color: #674AE4;
+}
+
+.facet-label {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+/* Other existing styles for the filter drawer */
+.filter-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  background-color: white;
+  z-index: 50;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+}
+
+.filter-drawer-inner {
+  padding: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.drawer-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.link {
+  color: #674AE4;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: #674AE4;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.sort-dir-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border-radius: 0.375rem;
+  color: #4b5563;
+  background-color: #f3f4f6;
+  margin-left: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sort-dir-btn:hover {
+  background-color: #e5e7eb;
+}
+/* … existing rules kept … */
+
+/* NEW — dim close (X) in drawer */
+.drawer-close{width:20px;height:20px;color:#64748b;cursor:pointer}
+.drawer-close:hover{color:#1e293b}
+/* ── resizable drawer ─────────────────────────────────────────── */
+.resize-bar{
+  position:absolute;
+  left:-4px; top:0; bottom:0;
+  width:6px; cursor:ew-resize;
+}
+.resize-bar:hover{ background:rgba(0,0,0,.05); }
+
+/* dim “X” icon inside drawer */
+.drawer-close{
+  width:20px; height:20px;
+  color:#64748b; cursor:pointer;
+}
+.drawer-close:hover{ color:#1e293b; }
