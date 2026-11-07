@@ -1,0 +1,14 @@
+{
+  "id": "yannklees/omni-faster-r-cnn-with-head-vs-yolo",
+  "title": "OMNI Faster R-CNN with head vs YOLO",
+  "code_file": "train_rcnn_par.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": ["yannklees/omni-malocclusion-yolo", "yannklees/ultralytics-offline-kit"],
+  "competition_sources": [],
+  "kernel_sources": ["yannklees/omni-yolo11-training"]
+}

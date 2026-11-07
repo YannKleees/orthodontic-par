@@ -19,22 +19,6 @@ import {
 import { apiClient } from "@/lib/api";
 import type { PARComponent } from "@/hooks/types";
 
-/* -------------------- Richmond Index weights ----------------------
-   Component-specific multipliers per Richmond scoring convention.
-   The total PAR = Σ (component score × weight). Defaults defensively
-   to 1 for unlisted components to avoid NaN propagation.
-------------------------------------------------------------------- */
-const WEIGHTS: Record<string, number> = {
-  "Upper Crowding": 1,
-  "Lower Crowding": 1,
-  "Upper Spacing" : 1,
-  "Lower Spacing" : 1,
-  Overjet         : 6,
-  Centerline      : 4,
-  Overbite        : 2,
-  Crossbite       : 1,
-};
-
 /* -------------------- Debounce utility (trailing) -----------------
    Purpose:
    - Coalesce bursts of updates per key to reduce write-amplification
@@ -106,56 +90,35 @@ export function PARComponentsProvider({
 
   useEffect(() => { fetchComponents(); }, [fetchComponents]);
 
-  /* -------------------- Weighted total persistence ------------------------
-     Mechanism:
-     - Recompute weighted PAR on any local state change.
-     - Debounced PUT to /visit to persist the aggregate.
-     - Broadcast a CustomEvent 'par-score-updated' for external observers.
+  /* -------------------- Change notification ------------------------------
+     The backend recomputes the visit and patient PAR on every component write.
+     Once a write has finished, tell decoupled views (sidebar, dashboard) to refetch.
   ------------------------------------------------------------------------- */
   const debounced = useDebounced();
-  const persistTotal = useCallback(
-    (list: PARComponent[]) => {
-      const total = list.reduce(
-        (sum, c) => sum + (WEIGHTS[c.component] ?? 1) * c.score,
-        0,
-      );
-      debounced("__total__", () =>
-        apiClient
-          .updateVisit(patientId, visitId, { parScore: total } as any)
-          .then(() => {
-            // Out-of-band notification for decoupled consumers
-            window.dispatchEvent(
-              new CustomEvent("par-score-updated", {
-                detail: { patientId, visitId, parScore: total },
-              }),
-            );
-          })
-          .catch(() => { /* degrade silently; UI retains optimistic state */ }),
-      );
-    },
-    [patientId, visitId, debounced],
-  );
+  const notify = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("par-score-updated", { detail: { patientId, visitId } }));
+  }, [patientId, visitId]);
 
   /* -------------------- Update (optimistic + debounced PUT) --------------- */
   const updateComponent = useCallback(
     (id: string, patch: Partial<PARComponent>) => {
-      setComponents(prev => {
-        const next = prev.map(c => (c.id === id ? { ...c, ...patch } : c));
-        persistTotal(next);
-        return next;
-      });
+      // Editing an AI suggestion counts as reviewing it (the backend sets the same flag)
+      setComponents(prev => prev.map(c => (c.id === id
+        ? { ...c, ...patch, ...(c.source === "ai" ? { reviewed: true } : {}) }
+        : c)));
 
       // Debounce per-component network writes to reduce chatter
       debounced(id, () => {
         apiClient
           .updatePARComponent(patientId, visitId, id, {
             ...patch,
-            modifiedBy: "frontend",
+            modifiedBy: "clinician",
           })
+          .then(notify)
           .catch(fetchComponents); // rollback to server state on failure
       });
     },
-    [patientId, visitId, debounced, fetchComponents, persistTotal],
+    [patientId, visitId, debounced, fetchComponents, notify],
   );
 
   /* -------------------- Create (append + total recompute) ----------------- */
@@ -165,26 +128,19 @@ export function PARComponentsProvider({
     const { data: created } = await apiClient.createPARComponent(
       patientId,
       visitId,
-      { ...comp, modifiedBy: "frontend" },
+      { ...comp, modifiedBy: "clinician" },
     );
-
-    setComponents(prev => {
-      const next = [...prev, created];
-      persistTotal(next);
-      return next;
-    });
+    setComponents(prev => [...prev, created]);
+    notify();
     return created;
   };
 
   /* -------------------- Delete (filter + best-effort sync) ---------------- */
   const deleteComponent = async (id: string) => {
-    setComponents(prev => {
-      const next = prev.filter(c => c.id !== id);
-      persistTotal(next);
-      return next;
-    });
+    setComponents(prev => prev.filter(c => c.id !== id));
     try {
       await apiClient.deletePARComponent(patientId, visitId, id);
+      notify();
     } catch {
       fetchComponents(); // reconcile on error
     }

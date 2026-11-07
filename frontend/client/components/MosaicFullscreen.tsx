@@ -318,15 +318,16 @@ export function MosaicFullscreen({
     return maxScores[componentType] || 5;
   };
 
-  /** Unweighted totals as displayed; (weighted sum is computed elsewhere). */
+  /** Weighted PAR, same UK weights as the backend (backend/utils/par.js). */
+  const WEIGHTS: Record<string, number> = {
+    "Upper Crowding": 1, "Lower Crowding": 1, "Upper Spacing": 1, "Lower Spacing": 1,
+    Overjet: 6, Overbite: 2, Centerline: 4, Crossbite: 1,
+  };
   const totalPARScore = parComponents.reduce(
-    (sum, comp) => sum + comp.score,
+    (sum, comp) => sum + (WEIGHTS[comp.component] ?? 1) * comp.score,
     0,
   );
-  const maxPARScore = parComponents.reduce(
-    (sum, comp) => sum + comp.maxScore,
-    0,
-  );
+  const unreviewedAI = parComponents.filter(c => c.source === "ai" && !c.reviewed).length;
 
   /** Visual encodings per component class for rapid pattern recognition. */
   const componentColors = {
@@ -497,8 +498,9 @@ export function MosaicFullscreen({
               <div
                 key={component.id}
                 className={cn(
-                  "absolute border-2 select-none",
+                  "group absolute border-2 select-none hover:z-20",
                   componentColors[component.component],
+                  component.source === "ai" && !component.reviewed && "border-dashed",
                   dragState.componentId === component.id
                     ? "ring-2 ring-blue-500"
                     : "",
@@ -532,7 +534,7 @@ export function MosaicFullscreen({
                 {/* Clickable label for score/type editing */}
                 <div
                   className={cn(
-                    "absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap transition-colors",
+                    "absolute -top-6 left-0 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded whitespace-nowrap transition-colors",
                     editMode
                       ? "cursor-pointer hover:bg-gray-800"
                       : "cursor-default",
@@ -549,10 +551,12 @@ export function MosaicFullscreen({
                       : `${component.component}: ${component.score}/${component.maxScore}`
                   }
                 >
-                  {component.component}: {component.score}/{component.maxScore}
-                  {editMode && (
-                    <span className="ml-1 text-xs opacity-75">✏️</span>
-                  )}
+                  {/* Compact grade chip; the full label shows on hover so boxes don't cover each other */}
+                  <span className="group-hover:hidden">{component.score}</span>
+                  <span className="hidden group-hover:inline">
+                    {component.component}: {component.score}/{component.maxScore}
+                    {component.source === "ai" && !component.reviewed ? " (AI, not reviewed)" : ""}
+                  </span>
                 </div>
 
                 {/* Corner handles shown only during resize tool */}
@@ -590,7 +594,7 @@ export function MosaicFullscreen({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="absolute top-1 right-1 h-6 px-2 text-xs"
+                    className="absolute top-1 right-1 h-6 px-2 text-xs hidden group-hover:inline-flex"
                     onClick={() =>
                       handleEditScore(component.id, component.score)
                     }
@@ -636,7 +640,8 @@ export function MosaicFullscreen({
               </span>
             </div>
             <span className="text-gray-600">
-              Total PAR Score: {totalPARScore}/{maxPARScore}
+              Weighted PAR: {totalPARScore}
+              {unreviewedAI > 0 && ` · ${unreviewedAI} AI suggestion(s) not reviewed (dashed)`}
             </span>
           </div>
         </div>

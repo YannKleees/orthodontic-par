@@ -52,11 +52,15 @@ export function VisitsTab({ patientName, patientId, onOpenVisit }: VisitsTabProp
         (v.boxes ?? []).some(b => b.component.toLowerCase().includes(q)))
     : visits;
 
+  /** Sidebar and dashboard refetch on this event (see pages/Index.tsx). */
+  const notify = () => window.dispatchEvent(new CustomEvent("par-score-updated", { detail: { patientId } }));
+
   async function rerun(v: Visit) {
     setBusy(v.id);
     try {
       await apiClient.analyzeVisit(patientId, v.id);
       await refetch();
+      notify();
     } finally {
       setBusy(null);
     }
@@ -69,7 +73,7 @@ export function VisitsTab({ patientName, patientId, onOpenVisit }: VisitsTabProp
           <AddVisitForm
             patientId={patientId}
             patientName={patientName}
-            onSave={async () => { setShowWizard(false); await refetch(); }}
+            onSave={async () => { setShowWizard(false); await refetch(); notify(); }}
             onCancel={() => setShowWizard(false)}
           />
         </FullScreenModal>

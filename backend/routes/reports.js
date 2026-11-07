@@ -160,7 +160,7 @@ async function writePdf(file, { patient, visit, first }) {
     doc.font("Helvetica-Bold").fontSize(12).fillColor("#111827").text("Change since first visit", left);
     doc.font("Helvetica").fontSize(9).moveDown(0.3)
        .text(`First visit ${fmtDate(first.date)}: PAR ${before}.  This visit: PAR ${total}.  ` +
-             (pct === null ? "" : `Reduction ${Math.round(pct)}%. `) + `Category: ${category}.`, { width: W });
+             (pct === null ? "" : pct >= 0 ? `Reduction ${Math.round(pct)}%. ` : `Increase ${Math.round(-pct)}%. `) + `Category: ${category}.`, { width: W });
     doc.fontSize(7.5).fillColor(muted)
        .text("Categories after Richmond et al. (1992): improved = at least 30% reduction; greatly improved = also at least 22 points.", { width: W });
     doc.moveDown(0.8);
