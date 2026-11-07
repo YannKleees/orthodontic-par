@@ -146,7 +146,9 @@ class RCNNWithHead(nn.Module):
         self.detector.backbone.register_forward_hook(lambda _m, _i, out: setattr(self, "_feats", out))
 
     def _severity(self):
-        return self.head(self.gap(self._feats["0"]).flatten(1)).squeeze(1)
+        # In float32: under fp16 autocast the pooled features overflowed and training went NaN (run 1)
+        with torch.autocast(DEV, enabled=False):
+            return self.head(self.gap(self._feats["0"].float()).flatten(1)).squeeze(1)
 
     def forward(self, images, targets=None):
         if self.training:
@@ -179,6 +181,8 @@ def train(model, loader, name):
                 loss = sum(losses.values())
             opt.zero_grad()
             scaler.scale(loss).backward()
+            scaler.unscale_(opt)
+            torch.nn.utils.clip_grad_norm_(params, 10.0)        # one bad batch must not blow up the weights
             scaler.step(opt); scaler.update(); sched.step()
             tot += loss.item()
             for k, v in losses.items():
@@ -245,17 +249,19 @@ def main():
     gt = coco_gt(test_ds)
     results = {"test_images": len(test_ds), "epochs": EPOCHS, "evaluation": "pycocotools, IoU 0.50 and 0.50:0.95, maxDets 300"}
 
-    yolo_dets = None if SMOKE else predict_yolo(test_ds)
+    only_head = os.environ.get("ONLY_HEAD", "1") == "1"   # run 2: YOLO and plain R-CNN results are from run 1
+    yolo_dets = None if (SMOKE or only_head) else predict_yolo(test_ds)
     if yolo_dets is not None:
         results["yolo11s"] = coco_score(gt, yolo_dets)
         print("YOLO11s:", results["yolo11s"]["mAP50"], results["yolo11s"]["mAP50_95"], flush=True)
 
-    rcnn = train(detector(), loader, "rcnn")
-    torch.save(rcnn.state_dict(), WORK / "rcnn.pt")
-    dets, _, _ = predict_rcnn(rcnn, test_ds, with_head=False)
-    results["faster_rcnn"] = coco_score(gt, dets)
-    print("Faster R-CNN:", results["faster_rcnn"]["mAP50"], results["faster_rcnn"]["mAP50_95"], flush=True)
-    del rcnn; torch.cuda.empty_cache()
+    if not only_head:
+        rcnn = train(detector(), loader, "rcnn")
+        torch.save(rcnn.state_dict(), WORK / "rcnn.pt")
+        dets, _, _ = predict_rcnn(rcnn, test_ds, with_head=False)
+        results["faster_rcnn"] = coco_score(gt, dets)
+        print("Faster R-CNN:", results["faster_rcnn"]["mAP50"], results["faster_rcnn"]["mAP50_95"], flush=True)
+        del rcnn; torch.cuda.empty_cache()
 
     torch.manual_seed(0)
     mt = train(RCNNWithHead(mean, std), loader, "rcnn+head")

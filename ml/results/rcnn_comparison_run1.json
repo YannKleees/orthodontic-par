@@ -1,0 +1,48 @@
+{
+  "test_images": 828,
+  "epochs": 20,
+  "evaluation": "pycocotools, IoU 0.50 and 0.50:0.95, maxDets 300",
+  "yolo11s": {
+    "mAP50": 0.6531,
+    "mAP50_95": 0.3896,
+    "per_class_AP50": {
+      "healthy_tooth": 0.8717,
+      "tooth_torsion": 0.4412,
+      "deep_overjet": 0.4214,
+      "invisible_attachment": 0.6162,
+      "tooth_emergence": 0.3119,
+      "cast_fixed_appliance": 0.846,
+      "tooth_misalignment": 0.3664,
+      "mandibular_retrusion": 0.9062,
+      "orthodontic_brace": 0.8411,
+      "fixed_device": 0.9091
+    }
+  },
+  "faster_rcnn": {
+    "mAP50": 0.6272,
+    "mAP50_95": 0.3484,
+    "per_class_AP50": {
+      "healthy_tooth": 0.8536,
+      "tooth_torsion": 0.3736,
+      "deep_overjet": 0.4311,
+      "invisible_attachment": 0.5347,
+      "tooth_emergence": 0.2594,
+      "cast_fixed_appliance": 0.8256,
+      "tooth_misalignment": 0.4869,
+      "mandibular_retrusion": 0.9107,
+      "orthodontic_brace": 0.7146,
+      "fixed_device": 0.8818
+    }
+  },
+  "faster_rcnn_with_head": {
+    "mAP50": 0.0,
+    "mAP50_95": 0.0,
+    "per_class_AP50": {},
+    "severity_head": {
+      "target": "number of malocclusion findings per photo (stand-in, OMNI has no PAR labels)",
+      "MAE": NaN,
+      "MAE_predict_train_mean": 1.624,
+      "spearman": NaN
+    }
+  }
+}
