@@ -16,4 +16,4 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = process.env.DATA_DIR
   ? path.resolve(process.env.DATA_DIR)
-  : path.resolve(__dirname, "data");
+  : path.resolve(__dirname, "..", "data");          // outside backend/, so code watchers ignore it

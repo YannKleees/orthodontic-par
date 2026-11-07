@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "api": "node --watch backend/server.js",
+    "api": "node --watch-path=backend/routes --watch-path=backend/utils --watch-path=src backend/server.js",
     "start": "node backend/server.js",
     "dev": "cd frontend && npm run dev",
     "test": "node --test \"backend/tests/**/*.test.js\""

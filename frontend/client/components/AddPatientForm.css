@@ -38,6 +38,7 @@
   top: 15px;
   left: 0;
   pointer-events: none;
+  white-space: nowrap;   /* the characters are inline-blocks; without this "Date of Birth" wraps onto the value */
 }
 
 .form-control label span.char {
