@@ -15,7 +15,7 @@ YOLO11s trained on a Kaggle T4 GPU (57 epochs, early stopping, best at epoch 42)
 
 The paper's numbers come from its own evaluation code, so the comparison is close but not exact. Per-class scores are in `ml/results/test_metrics.json`. The classes that feed the PAR suggestions are the hardest: tooth torsion 0.46, tooth misalignment 0.51 and deep overjet 0.52 mAP50, against 0.89 for healthy teeth.
 
-**YOLO vs Faster R-CNN.** The internship prototype used a Faster R-CNN with an extra global head. Scored with the same pycocotools code on the same test photos (`ml/kaggle_rcnn/`, `ml/results/rcnn_comparison_run1.json`), YOLO11s reaches mAP50 0.653 and a Faster R-CNN (ResNet-50 FPN, 20 epochs) 0.627, so the app uses YOLO. The variant with the extra head diverged in its first run and is being retrained.
+**YOLO vs Faster R-CNN.** The internship prototype used a Faster R-CNN with an extra global head. Scored with the same pycocotools code on the same test photos (`ml/kaggle_rcnn/`, `ml/results/rcnn_comparison_run1.json`), YOLO11s reaches mAP50 0.653 and a Faster R-CNN (ResNet-50 FPN, 20 epochs) 0.627, so the app uses YOLO. The extra head (global pooling plus a linear layer, trained jointly) has no PAR labels to learn from on OMNI, so it was trained on a stand-in: the number of malocclusion findings per photo. It learns that target (mean absolute error 0.92 against 1.62 for always predicting the mean, Spearman 0.68), but detection drops to mAP50 0.571, mostly on tooth misalignment (0.06 against 0.49). Its first run diverged under fp16; the rerun computes the head in fp32 with gradient clipping, which the plain R-CNN run did not use (`ml/results/rcnn_with_head_run2.json`).
 
 ## How the automation works
 
