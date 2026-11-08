@@ -17,6 +17,8 @@ The paper's numbers come from its own evaluation code, so the comparison is clos
 
 **YOLO vs Faster R-CNN.** The internship prototype used a Faster R-CNN with an extra global head. Scored with the same pycocotools code on the same test photos (`ml/kaggle_rcnn/`, `ml/results/rcnn_comparison_run1.json`), YOLO11s reaches mAP50 0.653 and a Faster R-CNN (ResNet-50 FPN, 20 epochs) 0.627, so the app uses YOLO. The extra head (global pooling plus a linear layer, trained jointly) has no PAR labels to learn from on OMNI, so it was trained on a stand-in: the number of malocclusion findings per photo. It learns that target (mean absolute error 0.92 against 1.62 for always predicting the mean, Spearman 0.68), but detection drops to mAP50 0.571, mostly on tooth misalignment (0.06 against 0.49). Its first run diverged under fp16; the rerun computes the head in fp32 with gradient clipping, which the plain R-CNN run did not use (`ml/results/rcnn_with_head_run2.json`).
 
+The full write-up, with data, methods, per-class results and limitations, is in [report/](report/README.md).
+
 ## How the automation works
 
 1. Upload the five views (upper and lower occlusal, left, right, frontal). The backend builds a 3x2 mosaic.
